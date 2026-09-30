@@ -1,9 +1,9 @@
 import { spawnSync } from "node:child_process";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import { runSyncSite } from "./sync-site-wrap.js";
 
 export interface TmuxOptionDefaultsDeps {
-  tmuxAdapter: TmuxAdapter;
+  tmuxAdapter: SessionBackend;
   /**
    * OPR.0.4.6.02 S1 — reads the daemon's tmux option defaults at APPLY time.
    * Resolved fresh per call (from the SettingsStore in startup) so an
@@ -41,7 +41,7 @@ export interface TmuxOptionDefaultsDeps {
  * a successful `createSession` on a freshly-created session.
  */
 export class TmuxOptionDefaultsApplier {
-  private tmuxAdapter: TmuxAdapter;
+  private tmuxAdapter: SessionBackend;
   private readTmuxOptionDefaults: () => { statusBar: boolean };
   private platform: NodeJS.Platform;
   private hasCommand: (bin: string) => boolean;

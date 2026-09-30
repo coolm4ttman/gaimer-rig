@@ -11,7 +11,7 @@ import type { TranscriptStore } from "./transcript-store.js";
 import type { AgentActivityStore } from "./agent-activity-store.js";
 import type { SeatActivityService } from "./seat-activity-service.js";
 import { deriveDisplayActivity } from "./activity-taxonomy.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import { probeSessionActivity, mapPaneState } from "./session-transport.js";
 import type { StructuralObservation } from "./seat-structural-activity-service.js";
 import { findLatestUsableSnapshot, findLatestUsableSnapshotsForAllRigs } from "./rig-repository.js";
@@ -1131,7 +1131,7 @@ export function readAssignedWorkBySession(db: Database.Database): Map<string, As
 export async function attachAgentActivity(
   entries: NodeInventoryEntry[],
   deps: {
-    tmuxAdapter: TmuxAdapter;
+    tmuxAdapter: SessionBackend;
     activityStore?: AgentActivityStore;
     /** 5b82324b — the cached STRUCTURAL pane observation (SeatStructuralActivityService). READ-only
      *  and capture-FREE: lifts structural motion into the ACTIVITY signal on the DEFAULT path so a

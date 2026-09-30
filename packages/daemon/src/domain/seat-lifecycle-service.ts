@@ -3,7 +3,8 @@ import type Database from "better-sqlite3";
 import type { RigRepository } from "./rig-repository.js";
 import type { SessionRegistry } from "./session-registry.js";
 import type { EventBus } from "./event-bus.js";
-import type { TmuxAdapter, SessionProbe } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
+import type { SessionProbe } from "../adapters/tmux.js";
 import type { NodeInventoryEntry, PersistedEvent } from "./types.js";
 import { deriveCanonicalFromEntry, getNodeInventory } from "./node-inventory.js";
 import { deriveSessionName, parseSessionName } from "./session-name.js";
@@ -45,7 +46,7 @@ export interface SeatLifecycleDeps {
   rigRepo: RigRepository;
   sessionRegistry: SessionRegistry;
   eventBus: EventBus;
-  tmuxAdapter: TmuxAdapter;
+  tmuxAdapter: SessionBackend;
   listProcesses?: NativeProcessLister;
   nodeLauncher?: NodeLauncher;
   startupOrchestrator?: StartupOrchestrator;
@@ -155,7 +156,7 @@ export class SeatLifecycleService {
   private readonly rigRepo: RigRepository;
   private readonly sessionRegistry: SessionRegistry;
   private readonly eventBus: EventBus;
-  private readonly tmuxAdapter: TmuxAdapter;
+  private readonly tmuxAdapter: SessionBackend;
   private readonly listProcesses?: NativeProcessLister;
   private readonly nodeLauncher: NodeLauncher | null;
   private readonly startupOrchestrator: StartupOrchestrator | null;

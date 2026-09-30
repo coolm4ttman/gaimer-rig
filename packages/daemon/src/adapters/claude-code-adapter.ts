@@ -1,7 +1,7 @@
 import nodePath from "node:path";
 import fs from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
-import type { TmuxAdapter } from "./tmux.js";
+import type { SessionBackend } from "./session-backend.js";
 import { claudePostureFlag, claudeClassicRendererEnvPrefix } from "./yolo-mode.js";
 import type {
   RuntimeAdapter, NodeBinding, ResolvedStartupFile,
@@ -51,7 +51,7 @@ const FORK_POLL_DELAY_MS = 500;
  */
 export class ClaudeCodeAdapter implements RuntimeAdapter {
   readonly runtime = "claude-code";
-  private tmux: TmuxAdapter;
+  private tmux: SessionBackend;
   private fs: ClaudeAdapterFsOps;
   private sessionIdFactory: () => string;
   private sleep: (ms: number) => Promise<void>;
@@ -66,7 +66,7 @@ export class ClaudeCodeAdapter implements RuntimeAdapter {
   private recordProjection: (targetPath: string, content: string) => void;
 
   constructor(deps: {
-    tmux: TmuxAdapter;
+    tmux: SessionBackend;
     fsOps: ClaudeAdapterFsOps;
     sessionIdFactory?: () => string;
     sleep?: (ms: number) => Promise<void>;

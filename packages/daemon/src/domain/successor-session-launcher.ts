@@ -1,5 +1,5 @@
 import { ulid } from "ulid";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { DiscoveryRepository } from "./discovery-repository.js";
 import type { RuntimeHint } from "./discovery-types.js";
 import type { RuntimeAdapter, NodeBinding, ReadinessResult, ForkSource } from "./runtime-adapter.js";
@@ -83,7 +83,7 @@ export type SuccessorLaunchResult =
     };
 
 export class SuccessorSessionLauncher {
-  private tmuxAdapter: TmuxAdapter;
+  private tmuxAdapter: SessionBackend;
   private discoveryRepo: DiscoveryRepository;
   private sessionEnv: Record<string, string | undefined>;
   private newId: () => string;
@@ -95,7 +95,7 @@ export class SuccessorSessionLauncher {
   private exitTimeoutMs: number;
 
   constructor(
-    tmuxAdapter: TmuxAdapter,
+    tmuxAdapter: SessionBackend,
     discoveryRepo: DiscoveryRepository,
     opts: {
       sessionEnv?: Record<string, string | undefined>;

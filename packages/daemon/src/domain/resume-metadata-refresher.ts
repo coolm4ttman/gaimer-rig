@@ -3,7 +3,7 @@ import nodePath from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { SessionRegistry } from "./session-registry.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import {
   CodexThreadIdResolver,
   defaultResolveHomeDirByPid,
@@ -30,7 +30,7 @@ export interface ResumeRefreshSession {
 
 interface ResumeMetadataRefresherDeps {
   sessionRegistry: SessionRegistry;
-  tmuxAdapter: TmuxAdapter;
+  tmuxAdapter: SessionBackend;
   listProcesses?: () => Array<{ pid: number; ppid: number; command: string }> | Promise<Array<{ pid: number; ppid: number; command: string }>>;
   readCodexThreadIdByPid?: (pid: number, identity?: string) => Promise<string | undefined> | string | undefined;
   probeClaudeResume?: (sessionName: string, resumeToken: string, cwd?: string | null) => Promise<"resumable" | "not_resumable" | "inconclusive">;
@@ -48,7 +48,7 @@ interface ResumeMetadataRefresherDeps {
 
 export class ResumeMetadataRefresher {
   private sessionRegistry: SessionRegistry;
-  private tmuxAdapter: TmuxAdapter;
+  private tmuxAdapter: SessionBackend;
   private listProcesses: () => Array<{ pid: number; ppid: number; command: string }> | Promise<Array<{ pid: number; ppid: number; command: string }>>;
   private readCodexThreadIdByPid: (pid: number, identity?: string) => Promise<string | undefined> | string | undefined;
   private probeClaudeResume: (sessionName: string, resumeToken: string, cwd?: string | null) => Promise<"resumable" | "not_resumable" | "inconclusive">;

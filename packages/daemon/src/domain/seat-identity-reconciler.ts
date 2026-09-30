@@ -1,7 +1,7 @@
 import { observeCodexPaneProcess, listNativeProcesses, type NativeProcessLister, type CodexProcessObservation } from "./native-process-lineage.js";
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { SeatIdentityVerdict } from "./types.js";
 import { SeatIdentityStore, SelfHostIdentityStore } from "./seat-identity-store.js";
 import { RESERVED_HOST_IDS, validateHostRegistry } from "./hosts/hosts-registry-reader.js";
@@ -73,7 +73,7 @@ interface RunningSeatRow {
 
 export interface SeatIdentityReconcilerDeps {
   db: Database.Database;
-  tmux: Pick<TmuxAdapter, "listSessions" | "getPanePid" | "getPaneCommand">;
+  tmux: Pick<SessionBackend, "listSessions" | "getPanePid" | "getPaneCommand">;
   now?: () => Date;
   listProcesses?: NativeProcessLister;
 }

@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { EventBus } from "./event-bus.js";
 import type { SeatActivity } from "./types.js";
 import type {
@@ -21,7 +21,7 @@ export const DEFAULT_POLL_INTERVAL_MS = 1000;
  * Slice 15 — daemon owner of the `terminal-active` primitive.
  *
  * Polls tmux's `#{window_activity}` last-activity timestamp per seat
- * (via TmuxAdapter.readPaneLastActivity) and keeps the latest
+ * (via SessionBackend.readPaneLastActivity) and keeps the latest
  * observation keyed by canonical session name. Active/idle is derived
  * by comparing the observed timestamp's age against the silence-window
  * threshold. Downstream consumers (ps-projection, node-inventory, UI
@@ -35,7 +35,7 @@ export const DEFAULT_POLL_INTERVAL_MS = 1000;
  * ps/queue projection and never imports this service either.
  */
 export interface SeatActivityServiceDeps {
-  tmux: Pick<TmuxAdapter, "readPaneLastActivity">;
+  tmux: Pick<SessionBackend, "readPaneLastActivity">;
   defaultWindowSeconds: number;
   eventBus?: EventBus;
   now?: () => Date;
@@ -49,7 +49,7 @@ export interface PollSeatOptions {
 }
 
 export class SeatActivityService {
-  private readonly tmux: Pick<TmuxAdapter, "readPaneLastActivity">;
+  private readonly tmux: Pick<SessionBackend, "readPaneLastActivity">;
   private readonly defaultWindowSeconds: number;
   private readonly eventBus: EventBus | null;
   private readonly now: () => Date;

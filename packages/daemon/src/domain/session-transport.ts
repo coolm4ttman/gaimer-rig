@@ -3,7 +3,7 @@ import { OutboxHandler } from "./outbox-handler.js";
 import type Database from "better-sqlite3";
 import type { RigRepository } from "./rig-repository.js";
 import type { SessionRegistry } from "./session-registry.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { AgentActivityStore } from "./agent-activity-store.js";
 import type { EventBus } from "./event-bus.js";
 import type { AgentActivity } from "./types.js";
@@ -221,7 +221,7 @@ export async function probeSessionActivity(input: {
   sessionName: string | null;
   runtime: string | null;
   attachmentType: "tmux" | "external_cli" | null | undefined;
-  tmuxAdapter: TmuxAdapter;
+  tmuxAdapter: SessionBackend;
   now?: Date;
   /** S01/S02 P2: optional read-only observer of the capture this probe already takes. */
   captureObserver?: CaptureObserverSink;
@@ -530,7 +530,7 @@ interface SessionTransportDeps {
   db: Database.Database;
   rigRepo: RigRepository;
   sessionRegistry: SessionRegistry;
-  tmuxAdapter: TmuxAdapter;
+  tmuxAdapter: SessionBackend;
   agentActivityStore?: AgentActivityStore;
   // OPR.0.4.1.10 — required only for the --dangerously-interact audit path. When absent, a dangerous
   // override fails closed (refuses) rather than sending unaudited. Non-danger sends never need it.
@@ -556,7 +556,7 @@ export class SessionTransport {
   readonly db: Database.Database;
   private rigRepo: RigRepository;
   private sessionRegistry: SessionRegistry;
-  private tmuxAdapter: TmuxAdapter;
+  private tmuxAdapter: SessionBackend;
   private agentActivityStore?: AgentActivityStore;
   private eventBus?: EventBus;
   private now: () => Date;

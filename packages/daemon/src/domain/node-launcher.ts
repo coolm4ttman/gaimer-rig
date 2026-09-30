@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import type { RigRepository } from "./rig-repository.js";
 import type { SessionRegistry } from "./session-registry.js";
 import type { EventBus } from "./event-bus.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { TranscriptStore } from "./transcript-store.js";
 import type { PersistedEvent } from "./types.js";
 import { validateSessionName, deriveSessionName } from "./session-name.js";
@@ -40,7 +40,7 @@ interface NodeLauncherDeps {
   rigRepo: RigRepository;
   sessionRegistry: SessionRegistry;
   eventBus: EventBus;
-  tmuxAdapter: TmuxAdapter;
+  tmuxAdapter: SessionBackend;
   transcriptStore?: TranscriptStore;
   sessionEnv?: Record<string, string | undefined>;
   /** Default silence window (seconds). Currently used only as the
@@ -63,7 +63,7 @@ export class NodeLauncher {
   private rigRepo: RigRepository;
   private sessionRegistry: SessionRegistry;
   private eventBus: EventBus;
-  private tmuxAdapter: TmuxAdapter;
+  private tmuxAdapter: SessionBackend;
   private transcriptStore: TranscriptStore | null;
   private sessionEnv: Record<string, string>;
   private defaultSilenceWindowSeconds: number;

@@ -1,5 +1,5 @@
 import type { CmuxAdapter } from "../adapters/cmux.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { ScannedPane } from "./tmux-discovery-scanner.js";
 import type { RuntimeHint, Confidence } from "./discovery-types.js";
 
@@ -45,11 +45,11 @@ const CODEX_PANE_PATTERNS = [
  */
 export class SessionFingerprinter {
   private cmux: CmuxAdapter;
-  private tmux: TmuxAdapter;
+  private tmux: SessionBackend;
   private fsExists: (path: string) => boolean;
   private cachedAgentPIDs: Map<number, { runtime: string; pid: number }> | null = null;
 
-  constructor(deps: { cmuxAdapter: CmuxAdapter; tmuxAdapter: TmuxAdapter; fsExists: (path: string) => boolean }) {
+  constructor(deps: { cmuxAdapter: CmuxAdapter; tmuxAdapter: SessionBackend; fsExists: (path: string) => boolean }) {
     this.cmux = deps.cmuxAdapter;
     this.tmux = deps.tmuxAdapter;
     this.fsExists = deps.fsExists;

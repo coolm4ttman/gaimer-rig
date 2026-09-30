@@ -27,7 +27,7 @@ interface RigInstantiatorDeps {
   eventBus: EventBus;
   nodeLauncher: NodeLauncher;
   preflight: RigSpecPreflight;
-  tmuxAdapter?: import("../adapters/tmux.js").TmuxAdapter;
+  tmuxAdapter?: import("../adapters/session-backend.js").SessionBackend;
 }
 
 export class RigInstantiator {
@@ -37,7 +37,7 @@ export class RigInstantiator {
   private eventBus: EventBus;
   private nodeLauncher: NodeLauncher;
   private preflight: RigSpecPreflight;
-  private tmuxAdapter?: import("../adapters/tmux.js").TmuxAdapter;
+  private tmuxAdapter?: import("../adapters/session-backend.js").SessionBackend;
 
   constructor(deps: RigInstantiatorDeps) {
     if (deps.db !== deps.rigRepo.db) {
@@ -313,7 +313,7 @@ import { PodRepository } from "./pod-repository.js";
 import type { RigSpec as PodRigSpec, RigSpecPod, RigSpecPodMember, StartupAction, StartupFile } from "./types.js";
 import type { RuntimeAdapter, NodeBinding, ResolvedStartupFile } from "./runtime-adapter.js";
 import { resolveConcreteHint } from "./runtime-adapter.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import { installTopologyDefaults } from "./topology-defaults-installer.js";
 import type {
   CompactionStrategy,
@@ -348,7 +348,7 @@ interface PodInstantiatorDeps {
    *  threading, dropped when the restacked 4.8 instantiator won the warnings-site conflicts. */
   claudeActivityAssets?: { relayPath?: string; manifestPath?: string };
   adapters: Record<string, RuntimeAdapter>;
-  tmuxAdapter?: TmuxAdapter;
+  tmuxAdapter?: SessionBackend;
   /** PL-016 Item 4: optional agent-image library so AgentSpec
    *  session_source: mode: agent_image entries can resolve to the
    *  image's resume token. Optional — when absent, agent_image session

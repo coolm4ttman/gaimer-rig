@@ -1,5 +1,5 @@
 import { setTimeout as sleep } from "node:timers/promises";
-import type { TmuxAdapter } from "./tmux.js";
+import type { SessionBackend } from "./session-backend.js";
 import type { ResumeResult } from "./claude-resume.js";
 import { assessNativeResumeProbe, buildCodexResumeCore } from "../domain/native-resume-probe.js";
 import { runSyncSite } from "../domain/sync-site-wrap.js";
@@ -25,7 +25,7 @@ interface CodexResumeOptions {
 
 export class CodexResumeAdapter {
   constructor(
-    private tmux: TmuxAdapter,
+    private tmux: SessionBackend,
     private options: CodexResumeOptions = {}
   ) {}
 

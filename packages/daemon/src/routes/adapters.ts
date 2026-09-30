@@ -1,12 +1,12 @@
 import { Hono } from "hono";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { CmuxAdapter } from "../adapters/cmux.js";
 
 export const adaptersRoutes = new Hono();
 
 function getDeps(c: { get: (key: string) => unknown }) {
   return {
-    tmuxAdapter: c.get("tmuxAdapter" as never) as TmuxAdapter,
+    tmuxAdapter: c.get("tmuxAdapter" as never) as SessionBackend,
     cmuxAdapter: c.get("cmuxAdapter" as never) as CmuxAdapter,
   };
 }

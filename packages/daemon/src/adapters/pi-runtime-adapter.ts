@@ -11,7 +11,7 @@
 
 import nodePath from "node:path";
 import { randomUUID } from "node:crypto";
-import type { TmuxAdapter } from "./tmux.js";
+import type { SessionBackend } from "./session-backend.js";
 import { piTrust } from "./yolo-mode.js";
 import type {
   RuntimeAdapter, NodeBinding, ResolvedStartupFile,
@@ -40,7 +40,7 @@ export interface PiAdapterFsOps {
 }
 
 export interface PiRuntimeAdapterDeps {
-  tmux: TmuxAdapter;
+  tmux: SessionBackend;
   fsOps: PiAdapterFsOps;
   /** Root under which every Pi seat gets its isolated state dir (FR-7).
    *  Typically <OPENRIG_HOME>/state/pi. */
@@ -59,7 +59,7 @@ export interface PiRuntimeAdapterDeps {
 
 export class PiRuntimeAdapter implements RuntimeAdapter {
   readonly runtime = "pi";
-  private tmux: TmuxAdapter;
+  private tmux: SessionBackend;
   private fs: PiAdapterFsOps;
   private stateRoot: string;
   private runnerEntryPath: string;

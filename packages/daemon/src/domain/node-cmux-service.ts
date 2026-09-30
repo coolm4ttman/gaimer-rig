@@ -1,7 +1,7 @@
 import type { RigRepository } from "./rig-repository.js";
 import type { SessionRegistry } from "./session-registry.js";
 import type { CmuxAdapter, CmuxResult } from "../adapters/cmux.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 
 export type OpenCmuxAction = "focused_existing" | "created_new" | "created_helper";
 
@@ -13,12 +13,12 @@ export interface OpenCmuxResult {
 }
 
 export class NodeCmuxService {
-  private tmuxAdapter: TmuxAdapter | null;
+  private tmuxAdapter: SessionBackend | null;
   constructor(
     private rigRepo: RigRepository,
     private sessionRegistry: SessionRegistry,
     private cmuxAdapter: CmuxAdapter,
-    tmuxAdapter?: TmuxAdapter,
+    tmuxAdapter?: SessionBackend,
   ) {
     this.tmuxAdapter = tmuxAdapter ?? null;
   }

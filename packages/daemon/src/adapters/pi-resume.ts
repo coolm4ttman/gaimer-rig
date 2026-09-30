@@ -10,7 +10,7 @@
 
 import { setTimeout as sleep } from "node:timers/promises";
 import { randomUUID } from "node:crypto";
-import type { TmuxAdapter } from "./tmux.js";
+import type { SessionBackend } from "./session-backend.js";
 import type { ResumeResult } from "./claude-resume.js";
 import { piTrust } from "./yolo-mode.js";
 import {
@@ -38,7 +38,7 @@ interface PiResumeOptions {
 
 export class PiResumeAdapter {
   constructor(
-    private tmux: TmuxAdapter,
+    private tmux: SessionBackend,
     private fs: PiResumeFsOps,
     private paths: { stateRoot: string; runnerEntryPath: string },
     private options: PiResumeOptions = {},

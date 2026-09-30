@@ -1,7 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import type Database from "better-sqlite3";
 import type { RigRepository } from "./rig-repository.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { ExecFn } from "../adapters/tmux.js";
 import type { LegacyRigSpec as RigSpec, PreflightResult, RigSpec as PodRigSpec, RigSpecPod, RigSpecPodMember } from "./types.js"; // TODO: AS-T08b — migrate to pod-aware RigSpec
 import { deriveSessionName, validateSessionName, validateSessionComponents, VIRTUAL_DOMAIN_TOKENS } from "./session-name.js";
@@ -14,7 +14,7 @@ const RUNTIME_COMMANDS: Record<string, string> = {
 
 interface RigSpecPreflightDeps {
   rigRepo: RigRepository;
-  tmuxAdapter: TmuxAdapter;
+  tmuxAdapter: SessionBackend;
   exec: ExecFn;
   cmuxExec: ExecFn;
 }
@@ -23,7 +23,7 @@ interface RigSpecPreflightDeps {
 export class RigSpecPreflight {
   readonly db: Database.Database;
   private rigRepo: RigRepository;
-  private tmuxAdapter: TmuxAdapter;
+  private tmuxAdapter: SessionBackend;
   private exec: ExecFn;
   private cmuxExec: ExecFn;
 

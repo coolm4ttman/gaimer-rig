@@ -13,7 +13,7 @@ import type { SnapshotRepository } from "../domain/snapshot-repository.js";
 import type { RestoreOrchestrator } from "../domain/restore-orchestrator.js";
 import type { RuntimeAdapter } from "../domain/runtime-adapter.js";
 import type { SessionRegistry } from "../domain/session-registry.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { ClaimService } from "../domain/claim-service.js";
 import {
   RestoreConductor,
@@ -55,7 +55,7 @@ function getDeps(c: { get: (key: string) => unknown }) {
     runtimeAdapters: c.get("runtimeAdapters" as never) as Record<string, RuntimeAdapter> | undefined,
     // AMENDMENT 2 — the shipped machinery the adopt branch composes.
     sessionRegistry: c.get("sessionRegistry" as never) as SessionRegistry | undefined,
-    tmuxAdapter: c.get("tmuxAdapter" as never) as TmuxAdapter | undefined,
+    tmuxAdapter: c.get("tmuxAdapter" as never) as SessionBackend | undefined,
     claimService: c.get("claimService" as never) as ClaimService | undefined,
   };
 }

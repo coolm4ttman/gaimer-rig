@@ -24,11 +24,23 @@
 // minted in tmux's `%N` shape because callers treat them as opaque strings.
 
 import { spawn as ptySpawn, type IPty } from "node-pty";
-import { Terminal } from "@xterm/headless";
+// @xterm/headless ships no "exports" map and its "main" is CJS
+// (lib-headless/xterm-headless.js), so under plain Node ESM a named import
+// fails at load with "does not provide an export named 'Terminal'". Vitest's
+// transform hides this, so it only shows up when the real daemon boots.
+// Take the CJS default and destructure instead.
+import headless from "@xterm/headless";
+
+const { Terminal } = headless;
+type Terminal = InstanceType<typeof Terminal>;
 import { createWriteStream, type WriteStream } from "node:fs";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 
+import {
+  DeliveryGuardError,
+  type SeatDeliveryGuard,
+} from "../../domain/seat-delivery-guard.js";
 import {
   unsupportedByBackend,
   type BackendClient,
@@ -92,6 +104,12 @@ export interface ConPtyBackendDeps {
 export class ConPtyBackend implements SessionBackend {
   readonly runtime = "conpty";
 
+  /** Misdelivery protection. Assigned by the composition root, exactly as on
+   *  TmuxAdapter. Honoured by guardedInput below on every write path — a
+   *  backend that merely exposed the field without enforcing it would be
+   *  silently less safe than tmux. */
+  deliveryGuard?: SeatDeliveryGuard;
+
   private readonly sessions = new Map<string, ConPtySession>();
   private readonly panesById = new Map<string, ConPtySession>();
   private readonly serverOptions = new Map<string, string>();
@@ -122,6 +140,58 @@ export class ConPtyBackend implements SessionBackend {
 
   private notFound(target: string): SessionResult {
     return { ok: false, code: "session_not_found", message: `no session or pane: ${target}` };
+  }
+
+  /**
+   * Mirrors TmuxAdapter.guardedInput. Serializes the write through the guard's
+   * per-node lane, re-resolves the bound target AFTER the async wait, and
+   * refuses if the pane identity moved underneath us. The write always targets
+   * the immutable pane id, never a session name, which could be recycled.
+   */
+  private async guardedInput(
+    target: string,
+    write: (pane: string, beforeWrite: () => void) => Promise<SessionResult>,
+  ): Promise<SessionResult> {
+    const guard = this.deliveryGuard;
+    const session = this.resolve(target);
+    if (!session) return this.notFound(target);
+    if (!guard) return write(session.paneId, () => {});
+
+    try {
+      const created = this.freshManaged.has(session.name);
+      const bound = guard.target(target);
+      const identity = bound.nodeId;
+      return await guard.input(identity, async () => {
+        // Re-resolve after the wait: a fresh managed pane owns its own identity
+        // until the binding is committed, otherwise the guard's bound pane wins.
+        const current = this.resolve(target);
+        if (!current || current.exited) {
+          throw new DeliveryGuardError("guard_target_unknown", "Managed pane is gone; no input written.");
+        }
+        const expected = created && guard.ownsLifecycle(bound.nodeId) ? current.paneId : bound.pane;
+        if (!expected || expected !== current.paneId) {
+          throw new DeliveryGuardError(
+            "guard_target_unknown",
+            "Managed pane identity unavailable or changed; no input written.",
+          );
+        }
+        return write(current.paneId, () => guard.checkInput(identity));
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        code: (error as { code?: string }).code ?? "guard_target_unknown",
+        message: String((error as Error).message),
+      };
+    }
+  }
+
+  humanInput<T>(target: string, fn: () => Promise<T>): Promise<T> {
+    return this.deliveryGuard ? this.deliveryGuard.humanInput(target, fn) : fn();
+  }
+
+  operation<T>(target: string, fn: () => Promise<T>): Promise<T> {
+    return this.deliveryGuard ? this.deliveryGuard.operation(target, fn) : fn();
   }
 
   // ── Tier 1: lifecycle ─────────────────────────────────────────────────────
@@ -251,11 +321,21 @@ export class ConPtyBackend implements SessionBackend {
    *    The single trailing submit stays the caller's separate sendKeys(["C-m"]).
    */
   async sendText(target: string, text: string): Promise<SessionResult> {
-    const s = this.resolve(target);
-    if (!s) return this.notFound(target);
-    if (s.exited) return { ok: false, code: "pane_dead", message: `pane exited: ${target}` };
+    return this.guardedInput(target, (pane, beforeWrite) =>
+      this.sendTextUnchecked(pane, text, beforeWrite));
+  }
+
+  private async sendTextUnchecked(
+    pane: string,
+    text: string,
+    beforeWrite: () => void,
+  ): Promise<SessionResult> {
+    const s = this.resolve(pane);
+    if (!s) return this.notFound(pane);
+    if (s.exited) return { ok: false, code: "pane_dead", message: `pane exited: ${pane}` };
     const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
     try {
+      beforeWrite();
       s.pty.write(`[200~${normalized}[201~`);
       return { ok: true };
     } catch (err) {
@@ -264,10 +344,20 @@ export class ConPtyBackend implements SessionBackend {
   }
 
   async sendKeys(target: string, keys: string[]): Promise<SessionResult> {
-    const s = this.resolve(target);
-    if (!s) return this.notFound(target);
-    if (s.exited) return { ok: false, code: "pane_dead", message: `pane exited: ${target}` };
+    return this.guardedInput(target, (pane, beforeWrite) =>
+      this.sendKeysUnchecked(pane, keys, beforeWrite));
+  }
+
+  private async sendKeysUnchecked(
+    pane: string,
+    keys: string[],
+    beforeWrite: () => void,
+  ): Promise<SessionResult> {
+    const s = this.resolve(pane);
+    if (!s) return this.notFound(pane);
+    if (s.exited) return { ok: false, code: "pane_dead", message: `pane exited: ${pane}` };
     try {
+      beforeWrite();
       for (const k of keys) s.pty.write(encodeKey(k));
       return { ok: true };
     } catch (err) {
@@ -280,8 +370,6 @@ export class ConPtyBackend implements SessionBackend {
     command: string,
     beforeInput?: () => void,
   ): Promise<SessionResult> {
-    const s = this.resolve(target);
-    if (!s) return this.notFound(target);
     const written = await this.sendText(target, command);
     if (!written.ok) return written;
     beforeInput?.();

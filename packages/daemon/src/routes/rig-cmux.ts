@@ -7,7 +7,7 @@
 import { Hono } from "hono";
 import type { RigRepository } from "../domain/rig-repository.js";
 import type { CmuxAdapter } from "../adapters/cmux.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import { CmuxLayoutService } from "../domain/cmux-layout-service.js";
 
 export const rigCmuxRoutes = new Hono();
@@ -26,7 +26,7 @@ interface RigCmuxDeps {
   cmuxAdapter: CmuxAdapter;
   cmuxLayoutService: CmuxLayoutService;
   nodeInventoryFn: NodeInventoryFn;
-  tmuxAdapter: TmuxAdapter;
+  tmuxAdapter: SessionBackend;
   readinessTimeoutMs?: number;
   readinessPollMs?: number;
 }
@@ -37,7 +37,7 @@ function getDeps(c: { get: (key: string) => unknown }): RigCmuxDeps {
     cmuxAdapter: c.get("cmuxAdapter" as never) as CmuxAdapter,
     cmuxLayoutService: c.get("cmuxLayoutService" as never) as CmuxLayoutService,
     nodeInventoryFn: c.get("nodeInventoryFn" as never) as NodeInventoryFn,
-    tmuxAdapter: c.get("tmuxAdapter" as never) as TmuxAdapter,
+    tmuxAdapter: c.get("tmuxAdapter" as never) as SessionBackend,
     readinessTimeoutMs: c.get("readinessTimeoutMs" as never) as number | undefined,
     readinessPollMs: c.get("readinessPollMs" as never) as number | undefined,
   };

@@ -3,7 +3,7 @@ import type { RigRepository } from "./rig-repository.js";
 import type { SessionRegistry } from "./session-registry.js";
 import type { DiscoveryRepository } from "./discovery-repository.js";
 import type { EventBus } from "./event-bus.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { QueueRepository } from "./queue-repository.js";
 
 type ClaimedSessionRow = {
@@ -137,7 +137,7 @@ interface RigLifecycleDeps {
   discoveryRepo: DiscoveryRepository;
   eventBus: EventBus;
   queueRepo: QueueRepository;
-  tmuxAdapter?: TmuxAdapter;
+  tmuxAdapter?: SessionBackend;
 }
 
 export class RigLifecycleService {
@@ -147,7 +147,7 @@ export class RigLifecycleService {
   private readonly discoveryRepo: DiscoveryRepository;
   private readonly eventBus: EventBus;
   private readonly queueRepo: QueueRepository;
-  private readonly tmuxAdapter: TmuxAdapter | null;
+  private readonly tmuxAdapter: SessionBackend | null;
 
   constructor(deps: RigLifecycleDeps) {
     if (deps.db !== deps.rigRepo.db) throw new Error("RigLifecycleService: rigRepo must share the same db handle");

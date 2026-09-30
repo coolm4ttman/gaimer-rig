@@ -11,7 +11,7 @@ import type { SnapshotRepository } from "./snapshot-repository.js";
 import type { SnapshotCapture } from "./snapshot-capture.js";
 import type { CheckpointStore } from "./checkpoint-store.js";
 import type { NodeLauncher } from "./node-launcher.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { ClaudeResumeAdapter } from "../adapters/claude-resume.js";
 import type { CodexResumeAdapter } from "../adapters/codex-resume.js";
 import type { PiResumeAdapter } from "../adapters/pi-resume.js";
@@ -132,7 +132,7 @@ interface RestoreOrchestratorDeps {
   snapshotCapture: SnapshotCapture;
   checkpointStore: CheckpointStore;
   nodeLauncher: NodeLauncher;
-  tmuxAdapter: TmuxAdapter;
+  tmuxAdapter: SessionBackend;
   claudeResume: ClaudeResumeAdapter;
   codexResume: CodexResumeAdapter;
   /** OPR.0.4.6.PI1 FR-6 — optional so older wiring/tests keep working; a Pi
@@ -152,7 +152,7 @@ export class RestoreOrchestrator {
   private snapshotRepo: SnapshotRepository;
   private snapshotCapture: SnapshotCapture;
   private nodeLauncher: NodeLauncher;
-  private tmuxAdapter: TmuxAdapter;
+  private tmuxAdapter: SessionBackend;
   private claudeResume: ClaudeResumeAdapter;
   private codexResume: CodexResumeAdapter;
   private piResume: PiResumeAdapter | null;

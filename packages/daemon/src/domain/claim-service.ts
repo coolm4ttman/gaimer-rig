@@ -4,7 +4,7 @@ import type { RigRepository } from "./rig-repository.js";
 import type { SessionRegistry } from "./session-registry.js";
 import type { DiscoveryRepository } from "./discovery-repository.js";
 import type { EventBus } from "./event-bus.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { TranscriptStore } from "./transcript-store.js";
 import { startTmuxTranscriptCapture } from "./transcript-capture.js";
 import { deriveResumeToken } from "./resume-token-capture.js";
@@ -62,7 +62,7 @@ interface ClaimServiceDeps {
   sessionRegistry: SessionRegistry;
   discoveryRepo: DiscoveryRepository;
   eventBus: EventBus;
-  tmuxAdapter?: TmuxAdapter;
+  tmuxAdapter?: SessionBackend;
   transcriptStore?: TranscriptStore;
   claudeContextProvisioner?: {
     ensureContextCollector(binding: { cwd?: string | null; tmuxSession?: string | null }): void;
@@ -108,7 +108,7 @@ export class ClaimService {
   private sessionRegistry: SessionRegistry;
   private discoveryRepo: DiscoveryRepository;
   private eventBus: EventBus;
-  private tmuxAdapter: TmuxAdapter | null;
+  private tmuxAdapter: SessionBackend | null;
   private transcriptStore: TranscriptStore | null;
   private claudeContextProvisioner: ClaimServiceDeps["claudeContextProvisioner"] | null;
   private contextUsageStore: ClaimServiceDeps["contextUsageStore"] | null;

@@ -4,7 +4,7 @@ import type { PodRepository } from "./pod-repository.js";
 import type { SessionRegistry } from "./session-registry.js";
 import type { EventBus } from "./event-bus.js";
 import type { PersistedEvent } from "./types.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { TranscriptStore } from "./transcript-store.js";
 import { startTmuxTranscriptCapture } from "./transcript-capture.js";
 
@@ -45,7 +45,7 @@ interface SelfAttachServiceDeps {
   podRepo: PodRepository;
   sessionRegistry: SessionRegistry;
   eventBus: EventBus;
-  tmuxAdapter?: TmuxAdapter;
+  tmuxAdapter?: SessionBackend;
   transcriptStore?: TranscriptStore;
   claudeContextProvisioner?: {
     ensureContextCollector(binding: { cwd?: string | null; tmuxSession?: string | null }): void;
@@ -96,7 +96,7 @@ export class SelfAttachService {
   private podRepo: PodRepository;
   private sessionRegistry: SessionRegistry;
   private eventBus: EventBus;
-  private tmuxAdapter: TmuxAdapter | null;
+  private tmuxAdapter: SessionBackend | null;
   private transcriptStore: TranscriptStore | null;
   private claudeContextProvisioner: SelfAttachServiceDeps["claudeContextProvisioner"] | null;
   private activityEnv: { url?: string; token?: string };

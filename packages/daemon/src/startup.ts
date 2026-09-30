@@ -23,7 +23,7 @@ import { loadHumanRegistry } from "./domain/gateway/human-registry.js";
 import { EventBus } from "./domain/event-bus.js";
 import { NodeLauncher } from "./domain/node-launcher.js";
 import { TmuxOptionDefaultsApplier } from "./domain/tmux-option-defaults.js";
-import { TmuxAdapter } from "./adapters/tmux.js";
+import { createSessionBackend } from "./adapters/session-backend-factory.js";
 import { CmuxAdapter } from "./adapters/cmux.js";
 import { execCommand } from "./adapters/tmux-exec.js";
 import { createCmuxCliTransport } from "./adapters/cmux-transport.js";
@@ -396,7 +396,10 @@ export async function createDaemon(opts?: DaemonOptions): Promise<DaemonResult> 
   watchdogAutoRegistration.assertLiveSeatCoverage();
   const watchdogHistoryLogInstance = new WatchdogHistoryLog(db);
 
-  const tmuxAdapter = new TmuxAdapter(opts?.tmuxExec ?? execCommand);
+  // GAIMER.RIG.CONPTY.3 — the single transport construction site. The factory
+  // picks ConPTY on Windows and tmux elsewhere; everything downstream is typed
+  // against SessionBackend and never learns which one it holds.
+  const tmuxAdapter = createSessionBackend({ exec: opts?.tmuxExec });
   const deliveryGuard = new SeatDeliveryGuard(db, target => resolveGuardTarget(db, target));
   deliveryGuard.recoverActivation();
   tmuxAdapter.deliveryGuard = deliveryGuard;

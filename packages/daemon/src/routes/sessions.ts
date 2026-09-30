@@ -5,7 +5,7 @@ import type { RigRepository } from "../domain/rig-repository.js";
 import type { SessionRegistry } from "../domain/session-registry.js";
 import type { NodeLauncher } from "../domain/node-launcher.js";
 import type { CmuxAdapter } from "../adapters/cmux.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { NodeCmuxService } from "../domain/node-cmux-service.js";
 import type { TranscriptStore } from "../domain/transcript-store.js";
 import type { AgentActivityStore } from "../domain/agent-activity-store.js";
@@ -60,7 +60,7 @@ function getDeps(c: { get: (key: string) => unknown }) {
     rigRepo: c.get("rigRepo" as never) as RigRepository,
     sessionRegistry: c.get("sessionRegistry" as never) as SessionRegistry,
     nodeLauncher: c.get("nodeLauncher" as never) as NodeLauncher,
-    tmuxAdapter: c.get("tmuxAdapter" as never) as TmuxAdapter,
+    tmuxAdapter: c.get("tmuxAdapter" as never) as SessionBackend,
     cmuxAdapter: c.get("cmuxAdapter" as never) as CmuxAdapter,
     agentActivityStore: c.get("agentActivityStore" as never) as AgentActivityStore | undefined,
     seatActivityService: c.get("seatActivityService" as never) as SeatActivityService | undefined,

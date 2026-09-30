@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import { classifyPaneActivity, type PaneActivityClassification } from "./session-transport.js";
 
 /** A cached STRUCTURAL pane observation: the classifyPaneActivity verdict plus WHEN the pane was read
@@ -45,7 +45,7 @@ export class SeatStructuralActivityService {
   private sweeping = false; // single-flight guard: one whole-fleet sweep at a time (MUST-FIX 2)
 
   constructor(
-    private readonly tmuxAdapter: Pick<TmuxAdapter, "capturePaneContent">,
+    private readonly tmuxAdapter: Pick<SessionBackend, "capturePaneContent">,
     private readonly now: () => Date = () => new Date(),
     private readonly captureLines: number = 20,
     private readonly staleAfterMs: number = DEFAULT_STRUCTURAL_STALE_MS,

@@ -15,7 +15,7 @@
 
 import nodePath from "node:path";
 import { randomUUID } from "node:crypto";
-import type { TmuxAdapter } from "./tmux.js";
+import type { SessionBackend } from "./session-backend.js";
 import { yoloEnabled, type ResolvedLaunchPosture } from "./yolo-mode.js";
 import type {
   RuntimeAdapter, NodeBinding, ResolvedStartupFile,
@@ -41,7 +41,7 @@ export interface StubAdapterFsOps {
 }
 
 export interface StubRuntimeAdapterDeps {
-  tmux: TmuxAdapter;
+  tmux: SessionBackend;
   /** Real filesystem operations. Absent in minimal/hermetic test constructions —
    *  the adapter then falls back to an in-memory launch record for readiness and
    *  performs NO real filesystem writes (so a `cwd: "."` binding never pollutes
@@ -68,7 +68,7 @@ interface StubLaunchRecord {
 
 export class StubRuntimeAdapter implements RuntimeAdapter {
   readonly runtime: string;
-  private tmux: TmuxAdapter;
+  private tmux: SessionBackend;
   private fsOps?: StubAdapterFsOps;
   private runnerEntryPath?: string;
   private sleep: (ms: number) => Promise<void>;

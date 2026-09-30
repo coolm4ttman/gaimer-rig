@@ -1,4 +1,4 @@
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 
 /** A single pane observed during a scan */
 export interface ScannedPane {
@@ -18,13 +18,13 @@ export interface ScanResult {
 
 /**
  * Enumerates all tmux sessions/windows/panes and resolves PID, cwd,
- * and active foreground command per pane. Uses TmuxAdapter — no raw
+ * and active foreground command per pane. Uses SessionBackend — no raw
  * tmux CLI strings in domain code.
  */
 export class TmuxDiscoveryScanner {
-  private tmux: TmuxAdapter;
+  private tmux: SessionBackend;
 
-  constructor(deps: { tmuxAdapter: TmuxAdapter }) {
+  constructor(deps: { tmuxAdapter: SessionBackend }) {
     this.tmux = deps.tmuxAdapter;
   }
 

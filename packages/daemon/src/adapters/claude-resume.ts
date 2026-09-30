@@ -1,5 +1,5 @@
 import { setTimeout as sleep } from "node:timers/promises";
-import type { TmuxAdapter } from "./tmux.js";
+import type { SessionBackend } from "./session-backend.js";
 import { shellQuote } from "./shell-quote.js";
 import { claudePostureFlag, claudeClassicRendererEnvPrefix } from "./yolo-mode.js";
 import { assessNativeResumeProbe } from "../domain/native-resume-probe.js";
@@ -27,7 +27,7 @@ interface ClaudeResumeOptions {
 
 export class ClaudeResumeAdapter {
   constructor(
-    private tmux: TmuxAdapter,
+    private tmux: SessionBackend,
     private options: ClaudeResumeOptions = {}
   ) {}
 

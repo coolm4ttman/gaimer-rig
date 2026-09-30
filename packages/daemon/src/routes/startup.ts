@@ -13,7 +13,7 @@ import type { RestoreOrchestrator } from "../domain/restore-orchestrator.js";
 import type { RuntimeAdapter } from "../domain/runtime-adapter.js";
 import type { PodRigInstantiator } from "../domain/rigspec-instantiator.js";
 import type { ResumeMetadataRefresher } from "../domain/resume-metadata-refresher.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { Node, RigWithRelations } from "../domain/types.js";
 import { defaultProbeRuntimes } from "../domain/kernel-boot.js";
 import { SettingsStore } from "../domain/user-settings/settings-store.js";
@@ -41,7 +41,7 @@ const active = new WeakMap<Database.Database, Set<string>>();
 function dep<T>(c: Context, key: string): T { return c.get(key as never) as T; }
 function repo(c: Context) { return dep<RigRepository>(c, "rigRepo"); }
 function sessions(c: Context) { return dep<SessionRegistry>(c, "sessionRegistry"); }
-function tmux(c: Context) { return dep<TmuxAdapter>(c, "tmuxAdapter"); }
+function tmux(c: Context) { return dep<SessionBackend>(c, "tmuxAdapter"); }
 
 /** A consent version derived from consumed state, never a second owner ledger. */
 export function startupRevision(db: Database.Database, node: Node): string {

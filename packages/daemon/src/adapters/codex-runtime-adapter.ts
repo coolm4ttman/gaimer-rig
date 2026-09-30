@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import os from "node:os";
 import Database from "better-sqlite3";
 import { parse as parseToml } from "smol-toml";
-import type { TmuxAdapter } from "./tmux.js";
+import type { SessionBackend } from "./session-backend.js";
 import { codexPostureArg } from "./yolo-mode.js";
 import type {
   RuntimeAdapter, NodeBinding, ResolvedStartupFile,
@@ -60,7 +60,7 @@ export interface CodexAdapterFsOps {
  */
 export class CodexRuntimeAdapter implements RuntimeAdapter {
   readonly runtime = "codex";
-  private tmux: TmuxAdapter;
+  private tmux: SessionBackend;
   private fs: CodexAdapterFsOps;
   private listProcesses: () => CodexProcess[] | Promise<CodexProcess[]>;
   private readThreadIdByPid: (pid: number) => Promise<string | undefined> | string | undefined;
@@ -88,7 +88,7 @@ export class CodexRuntimeAdapter implements RuntimeAdapter {
   private activityRelayPath?: string;
 
   constructor(deps: {
-    tmux: TmuxAdapter;
+    tmux: SessionBackend;
     fsOps: CodexAdapterFsOps;
     listProcesses?: () => CodexProcess[] | Promise<CodexProcess[]>;
     readThreadIdByPid?: (pid: number) => Promise<string | undefined> | string | undefined;

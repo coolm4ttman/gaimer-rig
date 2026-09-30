@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import type { SessionRegistry } from "./session-registry.js";
 import type { EventBus } from "./event-bus.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { StartupAction, StartupProofSelection } from "./types.js";
 import type {
   RuntimeAdapter, NodeBinding, ResolvedStartupFile,
@@ -76,7 +76,7 @@ interface StartupOrchestratorDeps {
   db: Database.Database;
   sessionRegistry: SessionRegistry;
   eventBus: EventBus;
-  tmuxAdapter: TmuxAdapter;
+  tmuxAdapter: SessionBackend;
   /** Read file content for concrete-hint resolution. */
   readFile?: (path: string) => string;
   /** Sleep between paste and submit for tmux-driven TUIs. */
@@ -107,7 +107,7 @@ export class StartupOrchestrator {
   readonly db: Database.Database;
   private sessionRegistry: SessionRegistry;
   private eventBus: EventBus;
-  private tmuxAdapter: TmuxAdapter;
+  private tmuxAdapter: SessionBackend;
   private sleep: (ms: number) => Promise<void>;
   private appliedLaunchStore: AppliedLaunchObservationStore;
 

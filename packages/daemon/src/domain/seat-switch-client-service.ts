@@ -1,5 +1,6 @@
 import type { RigRepository } from "./rig-repository.js";
-import type { TmuxAdapter, TmuxWindow, TmuxClient } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
+import type { TmuxWindow, TmuxClient } from "../adapters/tmux.js";
 import { SeatStatusService } from "./seat-status-service.js";
 
 /**
@@ -72,9 +73,9 @@ export type SeatSwitchClientResult =
 
 export class SeatSwitchClientService {
   private rigRepo: RigRepository;
-  private tmuxAdapter: TmuxAdapter;
+  private tmuxAdapter: SessionBackend;
 
-  constructor(deps: { rigRepo: RigRepository; tmuxAdapter: TmuxAdapter }) {
+  constructor(deps: { rigRepo: RigRepository; tmuxAdapter: SessionBackend }) {
     this.rigRepo = deps.rigRepo;
     this.tmuxAdapter = deps.tmuxAdapter;
   }

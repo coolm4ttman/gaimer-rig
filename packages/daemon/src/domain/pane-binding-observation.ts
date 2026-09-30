@@ -1,4 +1,4 @@
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { SeatIdentityVerdict } from "./types.js";
 
 export type PaneBindingObservation =
@@ -11,7 +11,7 @@ export type PaneBindingObservation =
 
 /** Observe the sole pane of one tmux session without mutating either tmux or DB. */
 export async function observeSolePane(
-  tmux: Pick<TmuxAdapter, "listPanes">,
+  tmux: Pick<SessionBackend, "listPanes">,
   sessionName: string,
 ): Promise<PaneBindingObservation> {
   try {

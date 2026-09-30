@@ -17,7 +17,7 @@ import {
   attachTerminalActivityAndWork,
 } from "../domain/node-inventory.js";
 import { projectionLane } from "../domain/projection-lane.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { AgentActivityStore } from "../domain/agent-activity-store.js";
 import type { SeatActivityService } from "../domain/seat-activity-service.js";
 import type { SeatStructuralActivityService } from "../domain/seat-structural-activity-service.js";
@@ -355,7 +355,7 @@ rigsRoutes.get("/:id/graph", async (c) => {
   // PL-019 item 4: enrich inventory with agentActivity at graph-payload time
   // so UI consumers receive activity in a single fetch (no separate
   // /api/rigs/:id/nodes round-trip just to color the topology dots).
-  const tmuxAdapter = c.get("tmuxAdapter" as never) as TmuxAdapter | undefined;
+  const tmuxAdapter = c.get("tmuxAdapter" as never) as SessionBackend | undefined;
   const agentActivityStore = c.get("agentActivityStore" as never) as AgentActivityStore | undefined;
   // OPR.0.4.3 healthz-wedge amplification fix: cheap by default (no per-node tmux
   // capture) — the 30s topology poll colors dots from the snapshot (running/idle) +
@@ -456,7 +456,7 @@ rigsRoutes.delete("/:id", async (c) => {
       eventBus.notifySubscribers(persistedEvent);
       return c.body(null, 204);
     };
-    const guard = (c.get("tmuxAdapter" as never) as TmuxAdapter | undefined)?.deliveryGuard;
+    const guard = (c.get("tmuxAdapter" as never) as SessionBackend | undefined)?.deliveryGuard;
     return guard ? await guard.lifecycle(rig.nodes.map(node => node.id), remove) : await remove();
   } catch (err) {
     if (err instanceof DeliveryGuardError) throw err;

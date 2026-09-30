@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import { constantTimeEqual } from "../middleware/auth-bearer-token.js";
 import {
   TerminalBrokerRegistry,
@@ -104,7 +104,7 @@ export function registerTerminalWs(
 
       return {
         async onOpen(_evt: unknown, ws: { send(data: string): void; close(code: number, reason: string): void }) {
-          const tmux = c.get("tmuxAdapter") as TmuxAdapter | undefined;
+          const tmux = c.get("tmuxAdapter") as SessionBackend | undefined;
           if (!tmux) { ws.close(1011, "tmux adapter unavailable"); return; }
           // Adapt the WebSocket to a broker subscriber. The broker owns the pipe,
           // the seed, the fanout, honest session-death close, and cleanup.

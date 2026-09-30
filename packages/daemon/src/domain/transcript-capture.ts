@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { TranscriptStore } from "./transcript-store.js";
 import {
   startTranscriptRotation,
@@ -7,7 +7,7 @@ import {
 } from "./transcript-rotation.js";
 
 export async function startTmuxTranscriptCapture(
-  tmuxAdapter: TmuxAdapter | null | undefined,
+  tmuxAdapter: SessionBackend | null | undefined,
   transcriptStore: TranscriptStore | null | undefined,
   rigName: string,
   sessionName: string,
@@ -43,7 +43,7 @@ interface RunningTranscriptSession {
 /** Restore process-local rotation timers after daemon restart. */
 export async function resumeRunningTranscriptCaptures(
   db: Database.Database,
-  tmuxAdapter: TmuxAdapter | null | undefined,
+  tmuxAdapter: SessionBackend | null | undefined,
   transcriptStore: TranscriptStore | null | undefined,
 ): Promise<number> {
   if (!tmuxAdapter || !transcriptStore?.enabled) return 0;

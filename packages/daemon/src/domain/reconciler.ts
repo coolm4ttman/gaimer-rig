@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import type { SessionRegistry } from "./session-registry.js";
 import type { EventBus } from "./event-bus.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 
 export interface ReconcileResult {
   checked: number;
@@ -13,7 +13,7 @@ interface ReconcilerDeps {
   db: Database.Database;
   sessionRegistry: SessionRegistry;
   eventBus: EventBus;
-  tmuxAdapter: TmuxAdapter;
+  tmuxAdapter: SessionBackend;
 }
 
 // Only an active/non-terminal session can become detached. In particular,
@@ -25,7 +25,7 @@ export class Reconciler {
   private db: Database.Database;
   private sessionRegistry: SessionRegistry;
   private eventBus: EventBus;
-  private tmuxAdapter: TmuxAdapter;
+  private tmuxAdapter: SessionBackend;
 
   constructor(deps: ReconcilerDeps) {
     if (deps.db !== deps.sessionRegistry.db) {

@@ -15,7 +15,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { readOpenRigEnv } from "../openrig-compat.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 
 export interface TranscriptRotationOptions {
   /** Trailing line count to capture each tick. */
@@ -78,7 +78,7 @@ export function getLastCaptureAt(sessionName: string): number | undefined {
  *  first tick fires immediately unless an old capture for this session is
  *  still pending; replacement then waits for a scheduled tick after it settles. */
 export function startTranscriptRotation(
-  tmuxAdapter: TmuxAdapter,
+  tmuxAdapter: SessionBackend,
   sessionName: string,
   outputPath: string,
   opts: TranscriptRotationOptions,

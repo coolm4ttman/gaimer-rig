@@ -51,8 +51,8 @@ export interface TerminalSubscriber {
 }
 
 /**
- * The subset of TmuxAdapter the broker drives. Declared structurally so the
- * broker is unit-testable with a plain mock; the real TmuxAdapter satisfies it.
+ * The subset of SessionBackend the broker drives. Declared structurally so the
+ * broker is unit-testable with a plain mock; the real SessionBackend satisfies it.
  */
 export interface BrokerTmux {
   humanInput?<T>(name: string, fn: () => Promise<T>): Promise<T>;

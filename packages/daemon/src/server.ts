@@ -13,7 +13,7 @@ import type { DaemonLifecycleStore } from "./domain/daemon-lifecycle-store.js";
 import type { EventBus } from "./domain/event-bus.js";
 import type { NodeLauncher } from "./domain/node-launcher.js";
 import type { TmuxOptionDefaultsApplier } from "./domain/tmux-option-defaults.js";
-import type { TmuxAdapter } from "./adapters/tmux.js";
+import type { SessionBackend } from "./adapters/session-backend.js";
 import type { CmuxAdapter } from "./adapters/cmux.js";
 import type { SnapshotCapture } from "./domain/snapshot-capture.js";
 import type { SnapshotRepository } from "./domain/snapshot-repository.js";
@@ -154,7 +154,7 @@ export interface AppDeps {
   nodeLauncher: NodeLauncher;
   /** Seat-scoped explicit fresh launch composes the same startup owner as rig launch. */
   startupOrchestrator?: import("./domain/startup-orchestrator.js").StartupOrchestrator;
-  tmuxAdapter: TmuxAdapter;
+  tmuxAdapter: SessionBackend;
   /** OPR.0.4.6.02 S1 — the shared tmux option-defaults applier, exposed to
    *  the seat-handover route so a fresh successor gets launch-only defaults. */
   tmuxOptionDefaults?: TmuxOptionDefaultsApplier;

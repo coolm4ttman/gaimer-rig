@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import type { RigRepository } from "./rig-repository.js";
 import type { SessionRegistry } from "./session-registry.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { SnapshotCapture } from "./snapshot-capture.js";
 import type { EventBus } from "./event-bus.js";
 import { RigNotFoundError } from "./errors.js";
@@ -33,7 +33,7 @@ interface TeardownDeps {
   db: Database.Database;
   rigRepo: RigRepository;
   sessionRegistry: SessionRegistry;
-  tmuxAdapter: TmuxAdapter;
+  tmuxAdapter: SessionBackend;
   snapshotCapture: SnapshotCapture;
   eventBus: EventBus;
   resumeMetadataRefresher?: ResumeMetadataRefresher;

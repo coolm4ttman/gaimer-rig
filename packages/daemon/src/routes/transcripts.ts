@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type Database from "better-sqlite3";
 import type { RigRepository } from "../domain/rig-repository.js";
 import type { TranscriptIngestHealth, TranscriptStore } from "../domain/transcript-store.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import { startTmuxTranscriptCapture } from "../domain/transcript-capture.js";
 import { redactTranscriptContent } from "../domain/transcript-redaction.js";
 
@@ -79,7 +79,7 @@ function resolveSessionToRig(
 async function tryStartCaptureForSession(
   db: Database.Database,
   transcriptStore: TranscriptStore,
-  tmuxAdapter: TmuxAdapter | undefined,
+  tmuxAdapter: SessionBackend | undefined,
   rigName: string,
   nodeId: string,
   sessionName: string,
@@ -99,7 +99,7 @@ type RouteIngestHealth = TranscriptIngestHealth & { runtime: string | null };
 async function ensureTranscriptIngest(
   db: Database.Database,
   transcriptStore: TranscriptStore,
-  tmuxAdapter: TmuxAdapter | undefined,
+  tmuxAdapter: SessionBackend | undefined,
   resolution: { rigName: string; nodeId: string; runtime: string | null },
   sessionName: string,
 ): Promise<{ health: RouteIngestHealth; started: boolean }> {
@@ -140,7 +140,7 @@ export function transcriptRoutes(): Hono {
     const transcriptStore = c.get("transcriptStore" as never) as TranscriptStore;
     const db = c.get("db" as never) as Database.Database;
     const rigRepo = c.get("rigRepo" as never) as RigRepository;
-    const tmuxAdapter = c.get("tmuxAdapter" as never) as TmuxAdapter | undefined;
+    const tmuxAdapter = c.get("tmuxAdapter" as never) as SessionBackend | undefined;
     const sessionName = c.req.param("session");
     const rawLines = parseInt(c.req.query("lines") ?? "50", 10);
     const lines = isNaN(rawLines) || rawLines < 1 ? 50 : rawLines;
@@ -188,7 +188,7 @@ export function transcriptRoutes(): Hono {
     const transcriptStore = c.get("transcriptStore" as never) as TranscriptStore;
     const db = c.get("db" as never) as Database.Database;
     const rigRepo = c.get("rigRepo" as never) as RigRepository;
-    const tmuxAdapter = c.get("tmuxAdapter" as never) as TmuxAdapter | undefined;
+    const tmuxAdapter = c.get("tmuxAdapter" as never) as SessionBackend | undefined;
     const sessionName = c.req.param("session");
     const pattern = c.req.query("pattern");
 
@@ -254,7 +254,7 @@ export function transcriptRoutes(): Hono {
     const transcriptStore = c.get("transcriptStore" as never) as TranscriptStore;
     const db = c.get("db" as never) as Database.Database;
     const rigRepo = c.get("rigRepo" as never) as RigRepository;
-    const tmuxAdapter = c.get("tmuxAdapter" as never) as TmuxAdapter | undefined;
+    const tmuxAdapter = c.get("tmuxAdapter" as never) as SessionBackend | undefined;
     const sessionName = c.req.param("session");
 
     if (!transcriptStore?.enabled) {

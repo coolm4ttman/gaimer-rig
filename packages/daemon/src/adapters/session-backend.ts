@@ -71,6 +71,21 @@ export function unsupportedByBackend(method: string, backend: BackendKind): Tmux
 }
 
 export interface SessionBackend {
+  // ── Misdelivery protection ────────────────────────────────────────────────
+  //
+  // Part of the backend contract, NOT a tmux detail: the guard serializes seat
+  // input and re-verifies pane identity before any write lands, so a message
+  // can never be delivered into the wrong agent's pane. Four consumers read it
+  // directly (claim-service, node-launcher, restore-orchestrator,
+  // claude-compaction-enforcer). A backend that ignored it would be silently
+  // less safe than tmux, so every backend must honour it on its write paths.
+
+  deliveryGuard?: import("../domain/seat-delivery-guard.js").SeatDeliveryGuard;
+
+  /** Explicit internal human input; transport HTTP options cannot select this. */
+  humanInput<T>(target: string, fn: () => Promise<T>): Promise<T>;
+  operation<T>(target: string, fn: () => Promise<T>): Promise<T>;
+
   // ── Tier 1: core session lifecycle + input ────────────────────────────────
 
   /** Ensure the transport is reachable. tmux: start-server. ConPTY: no-op ok. */

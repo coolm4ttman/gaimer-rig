@@ -6,7 +6,7 @@ import type { RigRepository } from "./rig-repository.js";
 import type { SessionRegistry } from "./session-registry.js";
 import type { DiscoveryRepository } from "./discovery-repository.js";
 import type { EventBus } from "./event-bus.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import type { TmuxOptionDefaultsApplier } from "./tmux-option-defaults.js";
 import { SeatStatusService, type SeatStatus, type SeatStatusResult } from "./seat-status-service.js";
 import { SeatHandoverPlanner, parseHandoverSource, SEAT_HANDOVER_SOURCE_CAPABILITIES, type SeatHandoverPlan, type SeatHandoverSource } from "./seat-handover-planner.js";
@@ -121,7 +121,7 @@ interface SeatHandoverServiceDeps {
   sessionRegistry: SessionRegistry;
   discoveryRepo: DiscoveryRepository;
   eventBus: EventBus;
-  tmuxAdapter: TmuxAdapter;
+  tmuxAdapter: SessionBackend;
   now?: () => Date;
   /** OpenRig identity/activity env stamped onto a created successor session,
    *  mirroring the launch identity env. Defaults to {} (the three core identity
@@ -200,7 +200,7 @@ export class SeatHandoverService {
   private sessionRegistry: SessionRegistry;
   private discoveryRepo: DiscoveryRepository;
   private eventBus: EventBus;
-  private tmuxAdapter: TmuxAdapter;
+  private tmuxAdapter: SessionBackend;
   private successorLauncher: SuccessorSessionLauncher;
   private captureDeps: ResumeTokenCaptureDeps;
   private occupantInvalidator: OccupantInvalidator | null;

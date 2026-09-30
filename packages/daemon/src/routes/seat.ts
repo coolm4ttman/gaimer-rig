@@ -4,7 +4,7 @@ import type { RigRepository } from "../domain/rig-repository.js";
 import type { SessionRegistry } from "../domain/session-registry.js";
 import type { DiscoveryRepository } from "../domain/discovery-repository.js";
 import type { EventBus } from "../domain/event-bus.js";
-import type { TmuxAdapter } from "../adapters/tmux.js";
+import type { SessionBackend } from "../adapters/session-backend.js";
 import { SeatStatusService } from "../domain/seat-status-service.js";
 import { SeatHandoverService } from "../domain/seat-handover-service.js";
 import { SeatSwitchClientService } from "../domain/seat-switch-client-service.js";
@@ -23,7 +23,7 @@ export const seatRoutes = new Hono();
 
 // S09 is an independent delivery preference, never a lifecycle or permission change.
 seatRoutes.post("/set-typing-guard/:seatRef", async c => {
-  const guard = (c.get("tmuxAdapter" as never) as TmuxAdapter).deliveryGuard;
+  const guard = (c.get("tmuxAdapter" as never) as SessionBackend).deliveryGuard;
   if (!guard) return c.json({ error: "Delivery guard unavailable" }, 503);
   const body = await c.req.json<Record<string, unknown>>();
   if (typeof body.enabled !== "boolean" || typeof body.reason !== "string" || !body.reason.trim()) {
@@ -39,7 +39,7 @@ seatRoutes.post("/set-typing-guard/:seatRef", async c => {
 });
 
 seatRoutes.get("/held-messages/:seatRef", c => {
-  const guard = (c.get("tmuxAdapter" as never) as TmuxAdapter).deliveryGuard;
+  const guard = (c.get("tmuxAdapter" as never) as SessionBackend).deliveryGuard;
   if (!guard) return c.json({ error: "Delivery guard unavailable" }, 503);
   try {
     const target = guard.target(decodeURIComponent(c.req.param("seatRef")));
@@ -55,7 +55,7 @@ seatRoutes.get("/held-messages/:seatRef", c => {
 });
 
 seatRoutes.post("/retire-held-message/:seatRef/:id", async c => {
-  const guard = (c.get("tmuxAdapter" as never) as TmuxAdapter).deliveryGuard;
+  const guard = (c.get("tmuxAdapter" as never) as SessionBackend).deliveryGuard;
   if (!guard) return c.json({ error: "Delivery guard unavailable" }, 503);
   const body = await c.req.json<Record<string, unknown>>();
   const actor = transportSenderSession(c);
@@ -74,7 +74,7 @@ seatRoutes.get("/status/:seatRef", (c) => {
   const result = service.getStatus(decodeURIComponent(c.req.param("seatRef")!));
 
   if (result.ok) {
-    const guard = (c.get("tmuxAdapter" as never) as TmuxAdapter | undefined)?.deliveryGuard;
+    const guard = (c.get("tmuxAdapter" as never) as SessionBackend | undefined)?.deliveryGuard;
     const target = guard?.maybeTarget(decodeURIComponent(c.req.param("seatRef")!));
     return c.json({ ...result.status, ...(guard && target ? { typingGuard: {
       ...guard.preference(target.nodeId), heldCount: new OutboxHandler(guard.db).heldForNode(target.nodeId, 1).total,
@@ -99,7 +99,7 @@ seatRoutes.post("/handover/:seatRef", async (c) => {
     sessionRegistry: c.get("sessionRegistry" as never) as SessionRegistry,
     discoveryRepo: c.get("discoveryRepo" as never) as DiscoveryRepository,
     eventBus: c.get("eventBus" as never) as EventBus,
-    tmuxAdapter: c.get("tmuxAdapter" as never) as TmuxAdapter,
+    tmuxAdapter: c.get("tmuxAdapter" as never) as SessionBackend,
     sessionEnv: (c.get("sessionEnv" as never) as Record<string, string | undefined> | undefined) ?? undefined,
     // B1 — launch a fresh successor into a live agent via the runtime adapters.
     runtimeAdapters: (c.get("runtimeAdapters" as never) as Record<string, import("../domain/runtime-adapter.js").RuntimeAdapter> | undefined) ?? undefined,
@@ -223,7 +223,7 @@ export function seatLifecycleService(c: { get(key: never): unknown }): SeatLifec
     rigRepo,
     sessionRegistry: c.get("sessionRegistry" as never) as SessionRegistry,
     eventBus: c.get("eventBus" as never) as EventBus,
-    tmuxAdapter: c.get("tmuxAdapter" as never) as TmuxAdapter,
+    tmuxAdapter: c.get("tmuxAdapter" as never) as SessionBackend,
     nodeLauncher: c.get("nodeLauncher" as never) as import("../domain/node-launcher.js").NodeLauncher,
     startupOrchestrator: (c.get("startupOrchestrator" as never) as import("../domain/startup-orchestrator.js").StartupOrchestrator | undefined) ?? undefined,
     runtimeAdapters: (c.get("runtimeAdapters" as never) as Record<string, import("../domain/runtime-adapter.js").RuntimeAdapter> | undefined) ?? undefined,
@@ -312,7 +312,7 @@ seatRoutes.post("/switch-client/:seatRef", async (c) => {
   const rigRepo = c.get("rigRepo" as never) as RigRepository;
   const service = new SeatSwitchClientService({
     rigRepo,
-    tmuxAdapter: c.get("tmuxAdapter" as never) as TmuxAdapter,
+    tmuxAdapter: c.get("tmuxAdapter" as never) as SessionBackend,
   });
 
   const rawWindow = body["toWindow"];
