@@ -996,6 +996,9 @@ describe("Daemon Lifecycle", () => {
   it("createIsProcessAlive treats zombie processes as dead", async () => {
     const { createIsProcessAlive } = await import("../src/commands/daemon.js");
     const isAlive = createIsProcessAlive({
+      // Pin the POSIX zombie check: it is off by default on Windows, which has
+      // no zombie state and no compatible `ps`.
+      zombieCheck: true,
       signalCheck: () => true,
       readProcessState: () => "Z",
     });
@@ -1006,6 +1009,7 @@ describe("Daemon Lifecycle", () => {
   it("createIsProcessAlive keeps non-zombie processes alive", async () => {
     const { createIsProcessAlive } = await import("../src/commands/daemon.js");
     const isAlive = createIsProcessAlive({
+      zombieCheck: true,
       signalCheck: () => true,
       readProcessState: () => "S",
     });

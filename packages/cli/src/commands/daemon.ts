@@ -19,11 +19,23 @@ import {
 interface ProcessAliveDeps {
   signalCheck: (pid: number) => boolean;
   readProcessState: (pid: number) => string | null;
+  /** POSIX-only zombie detection via `ps -o state=`. Defaults to false on
+   *  Windows, which has no zombie state and no compatible `ps`. Injectable so
+   *  tests can exercise the POSIX path on any host. */
+  zombieCheck?: boolean;
 }
 
 export function createIsProcessAlive(deps: ProcessAliveDeps): (pid: number) => boolean {
+  // GAIMER.RIG.WIN.2 — the `ps -o state=` zombie check is POSIX-only. On
+  // Windows `ps` either does not exist or rejects `-o`, so readProcessState
+  // returns null and the "no state = not alive" rule below declared EVERY live
+  // process dead. That is what made `rig daemon start` fail with "liveness
+  // could not be confirmed" against a daemon that was running fine.
+  // Windows has no zombie state, so the signal check is authoritative there.
+  const zombieCheck = deps.zombieCheck ?? process.platform !== "win32";
   return (pid: number) => {
     if (!deps.signalCheck(pid)) return false;
+    if (!zombieCheck) return true;
 
     const state = deps.readProcessState(pid)?.trim();
     if (!state) return false;
@@ -43,6 +55,9 @@ export function realDeps(): LifecycleDeps {
       }
     },
     readProcessState: (pid) => {
+      // No compatible `ps` on Windows; createIsProcessAlive skips the zombie
+      // check there rather than treating a null state as "dead".
+      if (process.platform === "win32") return null;
       try {
         return execFileSync("ps", ["-o", "state=", "-p", String(pid)], { encoding: "utf-8" });
       } catch {

@@ -317,7 +317,9 @@ export async function startServer(port?: number) {
   const servers: ServerType[] = [];
   for (const host of bindHosts) {
     const srv = serve({ fetch: app.fetch, port: p, hostname: host }, (info) => {
-      console.log(`OpenRig daemon listening on http://${host}:${info.port}`);
+      // IPv6 literals need brackets to make this a valid, copy-pasteable URL.
+      const shownHost = host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
+      console.log(`OpenRig daemon listening on http://${shownHost}:${info.port}`);
       if (!monitorsStarted) {
         monitorsStarted = true;
         contextMonitor.start();

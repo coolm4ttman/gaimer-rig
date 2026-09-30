@@ -238,6 +238,10 @@ const STATUS_PROBE_RETRY_DELAY_MS = 200;
 // prior fixed-bound timing (the settle deadline above is status-probe-LOCAL); this
 // restores the timeout the removed HEALTHZ_PROBE_TIMEOUT_MS supplied to them.
 const HEALTHZ_PROBE_TIMEOUT_MS = 250;
+/** GAIMER.RIG.WIN.2 — bounded settle window for a listening socket that is
+ *  still tearing down (Windows reports ECONNRESET until it completes). */
+const LISTENER_SETTLE_ATTEMPTS = 10;
+const LISTENER_SETTLE_DELAY_MS = 150;
 
 export type WorkspaceScaffoldResult = InitWorkspaceResult;
 
@@ -519,6 +523,23 @@ export function resolveBindIntent(input: {
  *  tailscale-when-detected; explicit ⇒ exactly the declared host) and prove each by
  *  probing its own /healthz — binding evidence, never config echo. A silently dropped
  *  listener (the 0.5.3-receipt regression shape) fails LOUDLY. */
+/**
+ * GAIMER.RIG.WIN.2 — format a bind host for use in a URL authority.
+ *
+ * An IPv6 literal MUST be bracketed (RFC 3986). Without this,
+ * `http://${host}:${port}` produces `http://fd7a:115c:a1e0::4635:642e:7433`,
+ * which is not a parseable URL, so fetch throws a generic error rather than a
+ * connection error. The listener gate classifies that as INDETERMINATE (not
+ * "unhealthy"), so it never reaches a positive verdict and `rig daemon start`
+ * fails with "healthz not responding" even though the daemon bound correctly
+ * and is serving. This bites on any machine with a Tailscale interface, where
+ * default bind mode binds loopback AND an IPv6 tailnet address.
+ */
+export function hostForUrl(host: string): string {
+  if (host.startsWith("[")) return host; // already bracketed
+  return host.includes(":") ? `[${host}]` : host;
+}
+
 export async function verifyRequiredListeners(input: {
   bind: { mode: "explicit" | "default"; hosts: string[]; tailscaleDetected: boolean };
   port: number;
@@ -552,7 +573,7 @@ export async function verifyRequiredListeners(input: {
   for (const host of required) {
     // NO catch-collapse here (r2 finding): the probe classifies its own errors; an
     // exception reaching this point is a wiring bug and should surface, not convert.
-    const outcome = await input.probe(`http://${host}:${input.port}/healthz`);
+    const outcome = await input.probe(`http://${hostForUrl(host)}:${input.port}/healthz`);
     if (outcome === "healthy") verified.push(host);
     else if (outcome === "unhealthy") missing.push(host);
     else indeterminate.push(host);
@@ -619,7 +640,7 @@ async function startOwnedDaemon(opts: StartOptions, deps: LifecycleDeps, lock: D
   } else {
     let recoveredRunning = false;
     try {
-      await fetchDaemonProbe(deps, `http://${probeHost}:${port}/healthz`, HEALTHZ_PROBE_TIMEOUT_MS);
+      await fetchDaemonProbe(deps, `http://${hostForUrl(probeHost)}:${port}/healthz`, HEALTHZ_PROBE_TIMEOUT_MS);
       recoveredRunning = true;
     } catch (err) {
       if (err instanceof HealthProbeTimeoutError) {
@@ -690,7 +711,7 @@ async function startOwnedDaemon(opts: StartOptions, deps: LifecycleDeps, lock: D
     if (!Number.isSafeInteger(pid) || pid! <= 0) throw new Error("Daemon spawn returned no valid child PID");
     if (hasExited()) throw new Error(`Daemon child ${pid} exited before startup completed`);
   };
-  const healthzUrl = `http://${probeHost}:${port}/healthz`;
+  const healthzUrl = `http://${hostForUrl(probeHost)}:${port}/healthz`;
   type StartHealth = { pid?: unknown; bind?: { mode: "explicit" | "default"; hosts: string[]; tailscaleDetected: boolean } };
   const readOwnedHealth = async (url: string): Promise<StartHealth | null> => {
     assertChild();
@@ -837,7 +858,28 @@ export async function stopDaemon(deps: LifecycleDeps): Promise<"stopped" | "no-t
       await fetchDaemonProbe(deps, check, HEALTHZ_PROBE_TIMEOUT_MS);
       return "responding";
     } catch (error) {
-      return isRefusedError(error) ? "refused" : "unavailable";
+      if (isRefusedError(error)) return "refused";
+      // GAIMER.RIG.WIN.2 — a socket still tearing down is TRANSIENT, not a
+      // verdict. On Windows, killing a process that holds a listening socket
+      // makes the next connect fail with ECONNRESET rather than ECONNREFUSED,
+      // so a single probe classified a cleanly stopped daemon as
+      // "unavailable" and every `rig daemon stop` reported
+      // "verification is unverified" while leaving stale state behind.
+      // Let the teardown settle and re-probe: once it completes the OS gives
+      // the same positive refusal POSIX gives immediately. This does NOT
+      // loosen the evidence rules — a reset never becomes proof on its own.
+      if (!isConnectionResetError(error)) return "unavailable";
+      for (let i = 0; i < LISTENER_SETTLE_ATTEMPTS; i++) {
+        await new Promise((resolve) => setTimeout(resolve, LISTENER_SETTLE_DELAY_MS));
+        try {
+          await fetchDaemonProbe(deps, check, HEALTHZ_PROBE_TIMEOUT_MS);
+          return "responding";
+        } catch (retryError) {
+          if (isRefusedError(retryError)) return "refused";
+          if (!isConnectionResetError(retryError)) return "unavailable";
+        }
+      }
+      return "unavailable";
     }
   };
   if (!state) {
@@ -898,6 +940,16 @@ export async function stopDaemon(deps: LifecycleDeps): Promise<"stopped" | "no-t
 /** RULING 1ae863d2 — positive-down evidence classifier (lockstep with the daemon's
  *  crash-cart-detect semantics): ONLY a connection refusal is strong down evidence;
  *  a timeout / abort / anything else never proves the daemon dead. */
+/** A connection actively reset mid-teardown. Transient on its own: it means the
+ *  socket is going away, not that it is gone. Never a verdict by itself. */
+function isConnectionResetError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const cause = (err as Error & { cause?: { code?: string } }).cause;
+  const code = (err as Error & { code?: string }).code;
+  return cause?.code === "ECONNRESET" || code === "ECONNRESET"
+    || cause?.code === "ECONNABORTED" || code === "ECONNABORTED";
+}
+
 function isRefusedError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
   const cause = (err as Error & { cause?: { code?: string } }).cause;
