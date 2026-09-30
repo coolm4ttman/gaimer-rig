@@ -17,3 +17,7 @@ import type { SessionBackend } from "./session-backend.js";
 type AssertSatisfiesBackend<T extends SessionBackend> = T;
 
 export type TmuxAdapterConformsToSessionBackend = AssertSatisfiesBackend<TmuxAdapter>;
+
+import type { ConPtyBackend } from "./conpty/conpty-backend.js";
+
+export type ConPtyBackendConformsToSessionBackend = AssertSatisfiesBackend<ConPtyBackend>;
