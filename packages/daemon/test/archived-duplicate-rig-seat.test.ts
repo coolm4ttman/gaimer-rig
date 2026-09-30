@@ -13,6 +13,7 @@ import { DiscoveryRepository } from "../src/domain/discovery-repository.js";
 import { RigLifecycleService } from "../src/domain/rig-lifecycle-service.js";
 import { SeatStatusService } from "../src/domain/seat-status-service.js";
 import { SeatLifecycleService } from "../src/domain/seat-lifecycle-service.js";
+import { resolveGuardTarget } from "../src/domain/seat-delivery-guard.js";
 import type { TmuxAdapter } from "../src/adapters/tmux.js";
 
 const RIG = "bodies-in-motion";
@@ -77,6 +78,33 @@ describe("#174 archived duplicate rig vs the live seat with the same name", () =
 
     expect(result).toMatchObject({ ok: true, reroutedQitemIds: [] });
     expect(queueRepo.getById(work.qitemId)).toMatchObject({ destinationSession: SEAT, state: "pending" });
+  });
+
+  it("(b) removing the LIVE node still kills its own session once; the archived twin's stale binding is not an owner", async () => {
+    const result = await lifecycle.removeNode(live.rigId, "lead.planner");
+
+    expect(result).toMatchObject({ ok: true, sessionsKilled: 1 });
+    expect(result.ok && "sessionKeptFor" in result).toBe(false);
+    expect(killSession).toHaveBeenCalledExactlyOnceWith(SEAT);
+  });
+
+  it("(b) removing the LIVE node still refuses its open work without --fallback", async () => {
+    const work = await queueRepo.create({ sourceSession: `orch@${RIG}`, destinationSession: SEAT, body: "live seat's work" });
+
+    const result = await lifecycle.removeNode(live.rigId, "lead.planner");
+
+    expect(result).toMatchObject({ ok: false, code: "active_qitems" });
+    expect(killSession).not.toHaveBeenCalled();
+    expect(queueRepo.getById(work.qitemId)).toMatchObject({ destinationSession: SEAT, state: "pending" });
+  });
+
+  it("(guard) the delivery guard resolves the live seat despite the archived twin's binding", () => {
+    expect(resolveGuardTarget(db, SEAT)).toMatchObject({ nodeId: live.nodeId, session: SEAT });
+  });
+
+  it("(guard) control: two unarchived bindings to the same name still resolve to nothing", () => {
+    seat(RIG, "running");
+    expect(resolveGuardTarget(db, SEAT)).toBeNull();
   });
 
   it("control: removing a node that owns its session still kills that session once", async () => {

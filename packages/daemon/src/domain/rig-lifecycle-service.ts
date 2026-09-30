@@ -388,10 +388,11 @@ export class RigLifecycleService {
     }
 
     // #174: a session name can be reused by another rig's live seat (for example an archived duplicate
-    // of a live rig). When another node owns the name, that session and the queue work addressed to it
-    // are the other seat's: removal neither kills it nor routes its work.
+    // of a live rig). When another unarchived node owns the name, that session and the queue work
+    // addressed to it are the other seat's: removal neither kills it nor routes its work. Owners in
+    // archived rigs don't count, since archiving keeps their stale bindings.
     const sessionOwner = node.latest_session_name
-      ? findOtherSessionOwner(this.db, node.latest_session_name, node.node_id)
+      ? findOtherSessionOwner(this.db, node.latest_session_name, node.node_id, { ignoreArchived: true })
       : null;
     const activeQitemIds = this.activeQitemIdsForSessionNames(
       node.latest_session_name && !sessionOwner ? [node.latest_session_name] : [],
@@ -560,6 +561,7 @@ export class RigLifecycleService {
       logicalId: string;
       status: "removed" | "failed";
       sessionsKilled: number;
+      sessionKeptFor?: string;
       error?: string;
     }> = [];
     for (const node of nodes) {
@@ -624,6 +626,7 @@ export class RigLifecycleService {
         logicalId: removed.logicalId,
         status: "removed",
         sessionsKilled: removed.sessionsKilled,
+        ...(removed.sessionKeptFor ? { sessionKeptFor: removed.sessionKeptFor } : {}),
       });
     }
 
