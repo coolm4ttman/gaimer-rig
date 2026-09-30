@@ -151,6 +151,24 @@ export interface SessionBackend {
   startPipePane(sessionName: string, outputPath: string): Promise<TmuxResult>;
   stopPipePane(sessionName: string): Promise<TmuxResult>;
 
+  /**
+   * OPTIONAL live-output capability (GAIMER.RIG.CONPTY.4).
+   *
+   * tmux can only mirror a pane to a FILE, so the live-terminal broker writes
+   * a pipe-pane log and polls it every 50ms — that poll is the floor on how
+   * live the web terminal can feel, and it burns a stat+read per session per
+   * tick. A pty already IS the byte stream, so a ConPTY-backed session can
+   * hand bytes straight to the broker with no file and no timer.
+   *
+   * Optional on purpose: TmuxAdapter does not implement it and is not edited
+   * (golden rule). Callers feature-detect and fall back to pipe-pane polling.
+   *
+   * Returns an unsubscribe function. Implementations MUST tolerate being
+   * called for an unknown target (returning a no-op) and MUST stop delivering
+   * after unsubscribe.
+   */
+  subscribeOutput?(target: string, onData: (chunk: string) => void): () => void;
+
   /** Attached human terminals. No ConPTY analogue — returns []. */
   listClients(): Promise<TmuxClient[]>;
   /** Retarget a human's view. No ConPTY analogue — `unsupported_by_backend`. */

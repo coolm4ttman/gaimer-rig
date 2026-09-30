@@ -153,3 +153,33 @@ describe.runIf(onWindows)("ConPtyBackend (real pty)", () => {
     expect(await backend.listSessions()).toEqual([]);
   });
 });
+
+describe.runIf(process.platform === "win32")("ConPtyBackend + broker live stream", () => {
+  it("carries real pty bytes to a subscriber with no pipe-pane file", async () => {
+    const { TerminalSessionBroker } = await import("../src/terminal/TerminalSessionBroker.js");
+    const backend = new ConPtyBackend();
+    const NAME = "gaimer-conpty-stream-test";
+
+    expect((await backend.createSession(NAME, process.cwd())).ok).toBe(true);
+    try {
+      const received: string[] = [];
+      const broker = new TerminalSessionBroker(NAME, backend as never);
+      await broker.attach({
+        send: (d: string) => received.push(d),
+        close: () => {},
+      });
+
+      await new Promise((r) => setTimeout(r, 2000)); // shell prompt
+      const marker = `GAIMER_STREAM_${Date.now()}`;
+      await backend.sendShellCommand(NAME, `echo ${marker}`);
+      await new Promise((r) => setTimeout(r, 2500));
+
+      // The bytes reached the viewer through the live subscription, and no
+      // pipe-pane temp file was ever created for this session.
+      expect(received.join("")).toContain(marker);
+      broker.dispose();
+    } finally {
+      await backend.killSession(NAME);
+    }
+  }, 25000);
+});

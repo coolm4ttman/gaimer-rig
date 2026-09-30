@@ -89,6 +89,10 @@ interface ConPtySession {
    *  dies so a successor can respawn into it, holding its scrollback. */
   remainOnExit: boolean;
   pipe?: { path: string; stream: WriteStream };
+  /** Live-output subscribers (GAIMER.RIG.CONPTY.4). Fed from the same pty
+   *  onData that drives the emulator, so a subscriber sees exactly the bytes
+   *  the pane saw, in order. */
+  subscribers: Set<(chunk: string) => void>;
   options: Map<string, string>;
 }
 
@@ -244,6 +248,7 @@ export class ConPtyBackend implements SessionBackend {
       exited: false,
       exitCode: null,
       remainOnExit: false,
+      subscribers: new Set(),
       options: new Map(),
     };
 
@@ -253,6 +258,16 @@ export class ConPtyBackend implements SessionBackend {
       // pipe-pane equivalent: tee the live stream straight to the file. This is
       // strictly better than tmux's pipe-pane + 50ms file polling.
       session.pipe?.stream.write(data);
+      // Live subscribers (CONPTY.4) receive the same bytes, in order, with no
+      // file and no timer. A throwing subscriber must never break the pane or
+      // starve the other subscribers.
+      for (const sub of session.subscribers) {
+        try {
+          sub(data);
+        } catch {
+          /* a subscriber fault is not a pane fault */
+        }
+      }
     });
     pty.onExit(({ exitCode }) => {
       session.exited = true;
@@ -296,6 +311,7 @@ export class ConPtyBackend implements SessionBackend {
       s.pipe.stream.end();
       s.pipe = undefined;
     }
+    s.subscribers.clear();
     s.term.dispose();
   }
 
@@ -627,6 +643,26 @@ export class ConPtyBackend implements SessionBackend {
     } catch (err) {
       return { ok: false, code: "pipe_failed", message: err instanceof Error ? err.message : String(err) };
     }
+  }
+
+  /**
+   * GAIMER.RIG.CONPTY.4 — hand live pane bytes straight to a caller.
+   *
+   * This is the capability that lets the live-terminal broker drop its
+   * pipe-pane file and its 50ms poll: a pty already is the stream, so there is
+   * nothing to mirror to disk and nothing to tail. Bytes are the same ones the
+   * emulator receives, delivered in order.
+   */
+  subscribeOutput(target: string, onData: (chunk: string) => void): () => void {
+    const s = this.resolve(target);
+    if (!s) return () => {}; // unknown target: a no-op, never a throw
+    s.subscribers.add(onData);
+    let active = true;
+    return () => {
+      if (!active) return; // idempotent unsubscribe
+      active = false;
+      s.subscribers.delete(onData);
+    };
   }
 
   async stopPipePane(sessionName: string): Promise<SessionResult> {

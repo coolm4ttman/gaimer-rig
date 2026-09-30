@@ -68,6 +68,10 @@ export interface BrokerTmux {
   /** Capture the last `lines` lines INCLUDING scrollback history (tmux
    *  capture-pane -S -lines). Used for the per-subscriber scroll-back window. */
   capturePaneContent(name: string, lines: number): Promise<string | null>;
+  /** GAIMER.RIG.CONPTY.4 — optional live byte stream. Present on ConPTY-backed
+   *  sessions; absent on tmux, which can only mirror a pane to a file. When it
+   *  is present the broker skips the temp file and the 50ms tail entirely. */
+  subscribeOutput?(name: string, onData: (chunk: string) => void): () => void;
 }
 
 export interface BrokerOptions {
@@ -182,6 +186,9 @@ export class TerminalSessionBroker {
   // closed if the open fails). Null until the first attach starts the open.
   private openPromise: Promise<{ ok: true } | { ok: false; code: number; reason: string }> | null = null;
   private tailStarted = false;
+  /** Set when the backend streams live bytes; the file tail is then never started. */
+  private streaming = false;
+  private unsubscribeOutput: (() => void) | null = null;
   private torndown = false;
   // The honest close reason a subscriber should get if it resumes (after an
   // async open/seed) to find the broker already torn down. Set on every
@@ -385,6 +392,24 @@ export class TerminalSessionBroker {
     await this.tmux.setWindowOption(this.sessionName, "window-size", "manual").catch(() => {});
     await this.tmux.resizeWindow(this.sessionName, this.cols, this.rows).catch(() => {});
 
+    // GAIMER.RIG.CONPTY.4 — when the backend can stream live bytes (ConPTY),
+    // subscribe directly and skip BOTH the temp file and the 50ms tail. tmux
+    // can only mirror a pane to a file, which is the only reason the polling
+    // path exists; a pty already is the stream. Same fanout, same history ring,
+    // same liveness — just no disk round-trip and no timer between a keystroke
+    // landing and a viewer seeing it.
+    if (this.tmux.subscribeOutput) {
+      this.unsubscribeOutput = this.tmux.subscribeOutput(this.sessionName, (chunk) => {
+        this.fanout(chunk);
+      });
+      this.pipeActive = true;
+      this.streaming = true;
+      // Parity with the pipe path: nudge a redraw so a freshly attached
+      // subscriber sees current pane content.
+      await this.tmux.sendKeys(this.sessionName, ["", ""]).catch(() => {});
+      return { ok: true };
+    }
+
     const outputPath = path.join(
       os.tmpdir(),
       `openrig-term-${this.sessionName.replace(/[^a-zA-Z0-9@-]/g, "_")}-${Date.now()}.log`,
@@ -444,6 +469,9 @@ export class TerminalSessionBroker {
   }
 
   private startTail(): void {
+    // GAIMER.RIG.CONPTY.4 — a live stream has nothing to tail; starting the
+    // interval here would poll a file that was never created.
+    if (this.streaming) return;
     if (this.tailInterval) return;
     this.tailInterval = setInterval(() => {
       const p = this.outputPath;
@@ -550,6 +578,17 @@ export class TerminalSessionBroker {
   }
 
   private teardownResources(): void {
+    // GAIMER.RIG.CONPTY.4 — drop the live subscription FIRST so no chunk can
+    // be fanned out to subscribers that are being torn down.
+    if (this.unsubscribeOutput) {
+      try {
+        this.unsubscribeOutput();
+      } catch {
+        // an unsubscribe fault must not block the rest of teardown
+      }
+      this.unsubscribeOutput = null;
+    }
+    this.streaming = false;
     if (this.tailInterval) {
       clearInterval(this.tailInterval);
       this.tailInterval = null;
