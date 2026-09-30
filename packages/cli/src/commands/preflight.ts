@@ -1,3 +1,4 @@
+import { dirname } from "node:path";
 import { Command } from "commander";
 import { SystemPreflight } from "../system-preflight.js";
 import { ConfigStore } from "../config-store.js";
@@ -33,7 +34,13 @@ export function preflightCommand(depsOverride?: PreflightCommandDeps): Command {
         configStore,
         getDaemonStatus: depsOverride?.getDaemonStatus ?? (() => getDaemonStatus(realDeps())),
         backendKind: depsOverride?.backendKind,
-        riggedHome: depsOverride?.riggedHome ?? config.db.path.replace(/\/[^/]+$/, ""),
+        // GAIMER.RIG.WIN.3: must be path.dirname, not a POSIX-only regex. The
+        // old `replace(/\/[^/]+$/, "")` strips nothing from a Windows path
+        // (backslash separators), so "OpenRig home" resolved to the DATABASE
+        // FILE itself and preflight then tried to mkdir/write-check a file —
+        // reporting "Cannot write to ...\openrig.sqlite (OpenRig home)" on a
+        // perfectly healthy install.
+        riggedHome: depsOverride?.riggedHome ?? dirname(config.db.path),
       });
 
       const result = await preflight.run();
