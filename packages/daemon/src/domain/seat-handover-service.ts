@@ -22,6 +22,7 @@ import type { JsonlExchange } from "./session-jsonl.js";
 import type { PersistedEvent } from "./types.js";
 import type { AppliedLaunchObservation } from "./permission-drift.js";
 import { AppliedLaunchObservationStore } from "./applied-launch-observation-store.js";
+import { findOtherSessionOwner } from "./session-owner.js";
 
 /** A bounded labeled-from-record recap of the predecessor's last exchanges + the record path,
  *  resolved from the predecessor's provider transcript (claude transcript_path / codex rollout_path).
@@ -891,24 +892,7 @@ export class SeatHandoverService {
   }
 
   private lookupManagedOwner(tmuxSession: string, targetNodeId: string): BindingOwnerRow | null {
-    const bindingOwner = this.db.prepare(`
-      SELECT n.id AS node_id, n.logical_id, r.name AS rig_name
-      FROM bindings b
-      JOIN nodes n ON n.id = b.node_id
-      JOIN rigs r ON r.id = n.rig_id
-      WHERE b.tmux_session = ? AND n.id != ?
-      LIMIT 1
-    `).get(tmuxSession, targetNodeId) as BindingOwnerRow | undefined;
-    if (bindingOwner) return bindingOwner;
-
-    return this.db.prepare(`
-      SELECT n.id AS node_id, n.logical_id, r.name AS rig_name
-      FROM sessions s
-      JOIN nodes n ON n.id = s.node_id
-      JOIN rigs r ON r.id = n.rig_id
-      WHERE s.session_name = ? AND n.id != ? AND s.status NOT IN ('superseded', 'detached', 'exited')
-      LIMIT 1
-    `).get(tmuxSession, targetNodeId) as BindingOwnerRow | undefined ?? null;
+    return findOtherSessionOwner(this.db, tmuxSession, targetNodeId);
   }
 
   private commit(input: {
