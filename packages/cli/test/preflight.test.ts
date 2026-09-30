@@ -55,6 +55,8 @@ describe("SystemPreflight", () => {
     mkdirSync(homeDir, { recursive: true });
 
     return new SystemPreflight({
+      // Pin tmux so these assertions are platform-independent (Windows -> ConPTY).
+      backendKind: "tmux" as const,
       exec: makeExec(opts?.tmuxMode ?? "healthy"),
       configStore: config,
       getDaemonStatus: makeStatus(opts?.daemonStatus),
@@ -129,6 +131,8 @@ describe("SystemPreflight", () => {
     mkdirSync(readonlyDir);
     chmodSync(readonlyDir, 0o444);
     const pf = new SystemPreflight({
+      // Pin tmux so these assertions are platform-independent (Windows -> ConPTY).
+      backendKind: "tmux" as const,
       exec: makeExec(),
       configStore: new ConfigStore(join(tmpDir, "config.json")),
       getDaemonStatus: makeStatus(),
@@ -241,6 +245,9 @@ describe("Preflight CLI", () => {
     const { writeFileSync } = await import("node:fs");
     writeFileSync(configPath, JSON.stringify({ daemon: { port: 0 } }));
     const cmd = preflightCommand({
+      // Pin tmux: on Windows the daemon selects ConPTY and the tmux check is
+      // skipped by design, which would make these assertions platform-dependent.
+      backendKind: "tmux" as const,
       exec: makeExec(),
       configPath,
       riggedHome: homeDir,
@@ -266,6 +273,9 @@ describe("Preflight CLI", () => {
     const { writeFileSync: wf } = await import("node:fs");
     wf(configPath2, JSON.stringify({ daemon: { port: 0 } }));
     const cmd = preflightCommand({
+      // Pin tmux: on Windows the daemon selects ConPTY and the tmux check is
+      // skipped by design, which would make these assertions platform-dependent.
+      backendKind: "tmux" as const,
       exec: makeExec(),
       configPath: configPath2,
       riggedHome: homeDir,
@@ -299,6 +309,9 @@ describe("Preflight CLI", () => {
     wf2(configPath, JSON.stringify({ daemon: { port: usedPort } }));
 
     const cmd = preflightCommand({
+      // Pin tmux: on Windows the daemon selects ConPTY and the tmux check is
+      // skipped by design, which would make these assertions platform-dependent.
+      backendKind: "tmux" as const,
       exec: makeExec(),
       configPath,
       riggedHome: homeDir,
@@ -323,6 +336,9 @@ describe("Preflight CLI", () => {
     const homeDir = join(tmpDir, ".openrig");
     mkdirSync(homeDir, { recursive: true });
     const cmd = preflightCommand({
+      // Pin tmux: on Windows the daemon selects ConPTY and the tmux check is
+      // skipped by design, which would make these assertions platform-dependent.
+      backendKind: "tmux" as const,
       exec: makeExec("missing"),
       configPath: join(tmpDir, "config.json"),
       riggedHome: homeDir,

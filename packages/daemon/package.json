@@ -76,6 +76,10 @@
     "./local-reading": {
       "types": "./dist/local-reading-surface.d.ts",
       "import": "./dist/local-reading-surface.js"
+    },
+    "./session-backend": {
+      "types": "./dist/session-backend-surface.d.ts",
+      "import": "./dist/session-backend-surface.js"
     }
   },
   "scripts": {

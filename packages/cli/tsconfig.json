@@ -3,22 +3,42 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "lib": ["ES2022"],
-    "types": ["node"],
+    "lib": [
+      "ES2022"
+    ],
+    "types": [
+      "node"
+    ],
     "baseUrl": ".",
     "paths": {
-      "@openrig/daemon/local-reading": ["../daemon/dist/local-reading-surface.d.ts"],
-      "@openrig/daemon/crash-cart": ["../daemon/dist/crash-cart-surface.d.ts"],
-      "@openrig/daemon/gateway-human-registry": ["../daemon/dist/gateway-human-registry-surface.d.ts"],
+      "@openrig/daemon/local-reading": [
+        "../daemon/dist/local-reading-surface.d.ts"
+      ],
+      "@openrig/daemon/crash-cart": [
+        "../daemon/dist/crash-cart-surface.d.ts"
+      ],
+      "@openrig/daemon/gateway-human-registry": [
+        "../daemon/dist/gateway-human-registry-surface.d.ts"
+      ],
       "@openrig/daemon/spec-conformance": [
         "../daemon/dist/spec-conformance-surface.d.ts"
       ],
-      "@openrig/daemon/gateway-protocol": ["../daemon/dist/gateway-protocol-surface.d.ts"],
+      "@openrig/daemon/gateway-protocol": [
+        "../daemon/dist/gateway-protocol-surface.d.ts"
+      ],
       "@openrig/daemon/instance-initialization": [
         "../daemon/dist/instance-initialization-surface.d.ts"
+      ],
+      "@openrig/daemon/session-backend": [
+        "../daemon/dist/session-backend-surface.d.ts"
       ]
     }
   },
-  "include": ["src"],
-  "exclude": ["dist", "test"]
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "dist",
+    "test"
+  ]
 }

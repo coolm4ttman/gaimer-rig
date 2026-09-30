@@ -4,6 +4,8 @@ import { dirname } from "node:path";
 import type { ConfigStore, RiggedConfig } from "./config-store.js";
 import type { DaemonStatus } from "./daemon-lifecycle.js";
 import { buildTmuxControlFailure, probeTmuxControlAsync } from "./tmux-health.js";
+import { resolveSessionBackendKind } from "@openrig/daemon/session-backend";
+import type { BackendKind } from "@openrig/daemon/session-backend";
 import { classifyNodeVersion } from "./node-support.js";
 
 export interface PreflightCheck {
@@ -27,6 +29,9 @@ interface PreflightDeps {
   getDaemonStatus: () => Promise<DaemonStatus>;
   openrigHome?: string;
   riggedHome?: string;
+  /** Injectable so preflight tests assert the tmux path regardless of the host
+   *  platform; production resolves it from the factory. */
+  backendKind?: BackendKind;
 }
 
 interface RunOverrides {
@@ -134,27 +139,40 @@ export class SystemPreflight {
       });
     }
 
-    // 2. tmux availability
-    const tmuxProbe = await probeTmuxControlAsync(this.deps.exec);
-    if (tmuxProbe.code === "not_installed") {
+    // 2. tmux availability — only when tmux is the transport the daemon will
+    // actually use. GAIMER.RIG.WIN.1: on Windows the daemon selects the ConPTY
+    // backend, which needs no tmux at all, so demanding it here would block
+    // startup on a dependency that is never invoked (and cannot be installed:
+    // the suggested brew/apt fixes do not exist on Windows).
+    const backendKind = this.deps.backendKind ?? resolveSessionBackendKind();
+    if (backendKind !== "tmux") {
       checks.push({
-        name: "tmux",
-        ok: false,
-        error: "tmux was not found in PATH.",
-        reason: "OpenRig uses tmux to create and control agent sessions.",
-        fix: "Install tmux (brew install tmux on macOS, apt install tmux on Debian/Ubuntu).",
+        name: "session_backend",
+        ok: true,
+        warning: `using the ${backendKind} session backend; tmux is not required`,
       });
-    } else if (tmuxProbe.available) {
-      checks.push({ name: "tmux", ok: true });
     } else {
-      const failure = buildTmuxControlFailure(tmuxProbe.detail ?? "unknown tmux control failure");
-      checks.push({
-        name: "tmux",
-        ok: false,
-        error: failure.message,
-        reason: failure.reason,
-        fix: failure.fix,
-      });
+      const tmuxProbe = await probeTmuxControlAsync(this.deps.exec);
+      if (tmuxProbe.code === "not_installed") {
+        checks.push({
+          name: "tmux",
+          ok: false,
+          error: "tmux was not found in PATH.",
+          reason: "OpenRig uses tmux to create and control agent sessions.",
+          fix: "Install tmux (brew install tmux on macOS, apt install tmux on Debian/Ubuntu).",
+        });
+      } else if (tmuxProbe.available) {
+        checks.push({ name: "tmux", ok: true });
+      } else {
+        const failure = buildTmuxControlFailure(tmuxProbe.detail ?? "unknown tmux control failure");
+        checks.push({
+          name: "tmux",
+          ok: false,
+          error: failure.message,
+          reason: failure.reason,
+          fix: failure.fix,
+        });
+      }
     }
 
     // 3. Writable OpenRig home + transcript path

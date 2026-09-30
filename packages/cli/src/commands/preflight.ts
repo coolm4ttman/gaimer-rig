@@ -9,6 +9,9 @@ interface PreflightCommandDeps {
   configPath?: string;
   riggedHome?: string;
   getDaemonStatus?: () => Promise<DaemonStatus>;
+  /** Injectable so preflight tests can assert the tmux path regardless of the
+   *  host platform; production resolves it from the session-backend factory. */
+  backendKind?: import("@openrig/daemon/session-backend").BackendKind;
 }
 
 export function preflightCommand(depsOverride?: PreflightCommandDeps): Command {
@@ -29,6 +32,7 @@ export function preflightCommand(depsOverride?: PreflightCommandDeps): Command {
         exec,
         configStore,
         getDaemonStatus: depsOverride?.getDaemonStatus ?? (() => getDaemonStatus(realDeps())),
+        backendKind: depsOverride?.backendKind,
         riggedHome: depsOverride?.riggedHome ?? config.db.path.replace(/\/[^/]+$/, ""),
       });
 

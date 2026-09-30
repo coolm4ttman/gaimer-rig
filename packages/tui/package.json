@@ -9,7 +9,7 @@
     "openrig-tui": "dist/main.js"
   },
   "scripts": {
-    "build": "tsc && chmod +x dist/main.js",
+    "build": "tsc && node scripts/postbuild.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
