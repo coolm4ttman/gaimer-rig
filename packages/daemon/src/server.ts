@@ -3,6 +3,11 @@ import type { HealthDiagnosisService } from "./domain/health-diagnosis.js";
 import type { HealthPolicyStore } from "./domain/health-policy.js";
 import type { HealthCheckpointSource } from "./domain/health-checkpoints.js";
 import { Hono } from "hono";
+import { authBearerTokenMiddleware, isLoopbackBind } from "./middleware/auth-bearer-token.js";
+
+/** GAIMER.RIG.WIN.4 — let the shutdown 200 flush before the connections phase
+ *  closes every server out from under it. */
+export const SHUTDOWN_RESPONSE_FLUSH_MS = 50;
 import fs from "node:fs";
 import nodePath from "node:path";
 import { fileURLToPath } from "node:url";
@@ -290,6 +295,10 @@ export interface AppDeps {
    */
   missionControlBearerToken?: string | null;
   terminalBearerToken?: string | null;
+  /** GAIMER.RIG.WIN.4 — supplied by the entrypoint once the shutdown driver
+   *  exists, so POST /api/shutdown can run the same drain a signal would.
+   *  Absent = the route refuses honestly with 503 rather than faking an accept. */
+  requestShutdown?: () => void;
   enableNodeWebSocket?: boolean;
   specReviewService?: SpecReviewService;
   specLibraryService?: SpecLibraryService;
@@ -804,6 +813,49 @@ export function createApp(deps: AppDeps): Hono {
   app.route(
     "/api/rig-mode",
     rigModeRoutes({ bearerToken: deps.missionControlBearerToken ?? null }),
+  );
+
+  // GAIMER.RIG.WIN.4 — graceful shutdown over HTTP.
+  //
+  // On Windows `process.kill(pid, "SIGTERM")` is TerminateProcess: the signal
+  // handlers never run, so the daemon cannot drain its phases and never writes
+  // a shutdown receipt, and `rig daemon stop` can only ever report the drain as
+  // unverified. This route drives the SAME shutdown the signal path drives —
+  // the entrypoint supplies it as deps.requestShutdown once that driver exists.
+  // It MUST be registered above the /api/* 404 below, which would otherwise
+  // swallow it.
+  app.post(
+    "/api/shutdown",
+    authBearerTokenMiddleware({ expectedToken: deps.terminalBearerToken ?? null }),
+    async (c) => {
+      // With no bearer configured the daemon is in loopback-only trust mode,
+      // but in default bind mode it is still BOUND to a tailnet address, so a
+      // remote peer can reach this route. Shutdown is destructive: an
+      // unauthenticated caller must be local.
+      if ((deps.terminalBearerToken ?? null) === null) {
+        const raw = (c.env as { incoming?: { socket?: { remoteAddress?: string } } })
+          ?.incoming?.socket?.remoteAddress;
+        // Node reports IPv4 peers on a dual-stack socket as "::ffff:127.0.0.1",
+        // which isLoopbackBind does not recognise; normalise before asking.
+        const peer = raw?.startsWith("::ffff:") ? raw.slice("::ffff:".length) : raw;
+        if (!isLoopbackBind(peer)) {
+          return c.json(
+            { ok: false, error: "shutdown requires a loopback peer or a bearer token" },
+            403,
+          );
+        }
+      }
+      const requestShutdown = deps.requestShutdown;
+      if (!requestShutdown) {
+        // Honest refusal rather than a fake accept: nothing would happen.
+        return c.json({ ok: false, error: "shutdown driver not wired" }, 503);
+      }
+      // Answer BEFORE draining. The connections phase closes every server, so
+      // shutting down inline would reset this very response and the caller
+      // would see a transport error instead of an accepted receipt.
+      setTimeout(() => requestShutdown(), SHUTDOWN_RESPONSE_FLUSH_MS);
+      return c.json({ ok: true, pid: process.pid, accepted: true });
+    },
   );
 
   app.all("/api/*", async (c, next) => {

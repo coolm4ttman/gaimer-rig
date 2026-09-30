@@ -181,6 +181,10 @@ export interface LifecycleDeps {
   // /healthz body (event-loop evidence). Optional so existing mocks that
   // return `{ ok }` are unchanged; production (realDeps) supplies it.
   fetch: (url: string) => Promise<{ ok: boolean; json?: () => Promise<unknown> }>;
+  /** GAIMER.RIG.WIN.4 — POST for the graceful-shutdown request. Optional so
+   *  existing mocks and callers are untouched; when absent, stop falls back to
+   *  the signal path exactly as before. */
+  post?: (url: string) => Promise<{ ok: boolean }>;
   kill: (pid: number, signal: string) => boolean;
   readFile: (path: string) => string | null;
   writeFile: (path: string, content: string) => void;
@@ -910,11 +914,38 @@ export async function stopDaemon(deps: LifecycleDeps): Promise<"stopped" | "no-t
   let notBefore = Date.parse(state.startedAt);
   if (pidState !== "dead") {
     notBefore = Date.now();
-    deps.kill(state.pid, "SIGTERM");
-    // One signal. An already-exited target goes straight to the same judgment.
+
+    // GAIMER.RIG.WIN.4 — ask the daemon to drain ITSELF first.
+    //
+    // On Windows process.kill(pid,"SIGTERM") is TerminateProcess: the daemon's
+    // signal handlers never run, so it cannot close its phases and never writes
+    // a shutdown receipt — every stop was reported as an unverified drain.
+    // POST /api/shutdown runs the same phases a signal would. The signal stays
+    // the fallback (and the escalation if the daemon does not go away), so a
+    // wedged daemon is still stopped rather than waited on forever.
+    let gracefulAccepted = false;
+    if (deps.post) {
+      try {
+        const res = await deps.post(`${target}/api/shutdown`);
+        gracefulAccepted = res.ok;
+      } catch {
+        // unreachable or refused: fall through to the signal
+      }
+    }
+    if (!gracefulAccepted) deps.kill(state.pid, "SIGTERM");
+
     const deadline = Date.now() + DAEMON_STOP_WAIT_MS;
     while (deps.isProcessAlive(state.pid) && Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 100));
+    }
+    // A graceful request that was accepted but did not finish still gets the
+    // signal — an accepted drain is not proof of an exit.
+    if (gracefulAccepted && deps.isProcessAlive(state.pid)) {
+      deps.kill(state.pid, "SIGTERM");
+      const escalationDeadline = Date.now() + DAEMON_STOP_WAIT_MS;
+      while (deps.isProcessAlive(state.pid) && Date.now() < escalationDeadline) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
     }
   }
   const present = deps.isProcessAlive(state.pid);

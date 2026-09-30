@@ -405,6 +405,12 @@ export async function startServer(port?: number) {
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 
+  // GAIMER.RIG.WIN.4 — hand the shutdown driver to the HTTP route, which lives
+  // in server.ts ABOVE the /api/* 404 guard (a route registered out here would
+  // be swallowed by it). Wired at this point because the driver only exists
+  // once the phases — and the servers they close — have been built.
+  deps.requestShutdown = () => shutdown("http");
+
   // Backward-compatible single-server return (callers that just need a
   // handle reference; multi-bind shutdown is wired via signal handlers).
   return servers[0]!;

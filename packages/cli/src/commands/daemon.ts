@@ -78,6 +78,16 @@ export function realDeps(): LifecycleDeps {
       // /healthz event-loop evidence. Bound to this Response instance.
       return { ok: res.ok, json: () => res.json() };
     },
+    // GAIMER.RIG.WIN.4 — POST for the graceful-shutdown request. A longer
+    // budget than the health probe: this one waits on the daemon accepting a
+    // drain, not just answering a ping.
+    post: async (url) => {
+      const res = await fetchWithTimeout(globalThis.fetch, url, { method: "POST" }, {
+        timeoutMs: 5_000,
+        timeoutMessage: `Daemon shutdown request timed out for ${url}`,
+      });
+      return { ok: res.ok };
+    },
     kill: (pid, signal) => { process.kill(pid, signal as NodeJS.Signals); return true; },
     readFile: (p) => { try { return fs.readFileSync(p, "utf-8"); } catch { return null; } },
     writeFile: (p, content) => {
