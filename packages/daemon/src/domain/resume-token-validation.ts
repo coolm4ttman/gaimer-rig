@@ -40,7 +40,7 @@ const MAX_TOKEN_LEN = 200;
 // always argv/shellQuote-passed, never a remote scp/rsync operand where
 // user@host parsing would matter (that ambiguity is why `rig file` excludes
 // it; this surface has no such parse).
-const PI_SESSION_FILE_CHARSET_RE = /^[A-Za-z0-9._/@-]+$/;
+const PI_SESSION_FILE_CHARSET_RE = /^[A-Za-z0-9._/@:\\-]+$/;
 const MAX_PI_SESSION_FILE_LEN = 1024;
 const PI_SESSION_FILE_SUFFIX = ".jsonl";
 
@@ -70,8 +70,10 @@ function validatePiSessionFileToken(token: string): ResumeTokenValidationOk | Re
   if (token.length > MAX_PI_SESSION_FILE_LEN) {
     return { ok: false, error: `Pi session-file token is too long (max ${MAX_PI_SESSION_FILE_LEN} characters).` };
   }
-  if (!token.startsWith("/")) {
-    return { ok: false, error: "Pi session-file token must be an absolute path (starting with '/')." };
+  const isAbsolutePosix = token.startsWith("/");
+  const isAbsoluteWindows = /^[a-zA-Z]:[\\/]/.test(token);
+  if (!isAbsolutePosix && !isAbsoluteWindows) {
+    return { ok: false, error: "Pi session-file token must be an absolute path." };
   }
   if (token.split("/").includes("..")) {
     return { ok: false, error: "Pi session-file token must not contain a '..' path segment." };

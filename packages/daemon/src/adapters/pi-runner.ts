@@ -575,11 +575,23 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   console.log(`[pi-runner] starting pi --mode rpc (seat ${args.sessionName})`);
   console.log(`[pi-runner] send text normally; prefixes: "/followup <text>" queues after the turn, "/abort" cancels`);
 
-  const child = spawn("pi", childArgs, {
-    cwd: args.cwd,
-    env: childEnv,
-    stdio: ["pipe", "pipe", "pipe"],
-  });
+  // WIN.SPAWN.1: npm installs pi as a .cmd shim; spawn("pi") ENOENTs on Windows.
+  // On win32, spawn node directly with the resolved pi CLI entry instead.
+  const piCliJs = nodePath.join(process.env.USERPROFILE || "", "pi-mono", "packages", "coding-agent", "dist", "cli.js");
+  const spawnDirect = process.platform === "win32" && fs.existsSync(piCliJs);
+  const child = (spawnDirect
+    ? spawn(process.execPath, [piCliJs, ...childArgs], {
+        cwd: args.cwd,
+        env: childEnv,
+        stdio: ["pipe", "pipe", "pipe"],
+        windowsHide: true,
+      })
+    : spawn("pi", childArgs, {
+        cwd: args.cwd,
+        env: childEnv,
+        stdio: ["pipe", "pipe", "pipe"],
+        windowsHide: true,
+      }));
 
   const io: RunnerIo = {
     sendRpc: (cmd) => {
