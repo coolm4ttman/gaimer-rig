@@ -109,11 +109,29 @@ describe.runIf(onWindows)("ConPtyBackend (real pty)", () => {
     expect(cursor!.y).toBeGreaterThanOrEqual(0);
   });
 
-  it("identifies what is running in the pane", async () => {
-    const cmd = await backend.getPaneCommand(paneId);
-    expect(cmd).toBeTruthy();
-    // A bare session should be sitting at a shell.
-    expect(cmd!.toLowerCase()).toMatch(/pwsh|powershell|cmd/);
+  it("identifies what is running in the pane, with no OS inspection", async () => {
+    // WIN.5 contract: the backend launched it, so it reports what it launched.
+    // The previous test sent `echo <marker>` into this pane.
+    expect(await backend.getPaneCommand(paneId)).toBe("echo");
+
+    // A pane that has had nothing sent to it reports its shell — i.e. the
+    // honest "nothing is running here but a shell".
+    const FRESH = "gaimer-conpty-fresh";
+    expect((await backend.createSession(FRESH, process.cwd())).ok).toBe(true);
+    try {
+      const fresh = (await backend.listPanes(FRESH))[0]!.id;
+      expect((await backend.getPaneCommand(fresh))!.toLowerCase()).toMatch(/pwsh|powershell|cmd/);
+    } finally {
+      await backend.killSession(FRESH);
+    }
+  }, 20000);
+
+  it("reports no command for a dead pane", async () => {
+    const DEAD = "gaimer-conpty-dead";
+    expect((await backend.createSession(DEAD, process.cwd())).ok).toBe(true);
+    const pane = (await backend.listPanes(DEAD))[0]!.id;
+    await backend.killSession(DEAD);
+    expect(await backend.getPaneCommand(pane)).toBeNull();
   }, 20000);
 
   it("tracks last activity as a unix timestamp", async () => {

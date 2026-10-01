@@ -55,6 +55,14 @@ import {
 
 const execAsync = promisify(exec);
 
+/** Run a one-off command without flashing a console window. `windowsHide` is
+ *  deliberate: these are rare, non-hot-path calls (taskkill, `where`), and a
+ *  visible console popping up on the user's desktop is user-hostile. */
+async function execHidden(cmd: string): Promise<string> {
+  const { stdout } = await execAsync(cmd, { windowsHide: true, encoding: "utf8" });
+  return stdout;
+}
+
 /** Canonical pane geometry. MUST stay in sync with TerminalSessionBroker's
  *  CANONICAL_COLS/ROWS — the live-terminal mirror asserts the grids match. */
 export const CONPTY_COLS = 90;
@@ -62,11 +70,6 @@ export const CONPTY_ROWS = 27;
 
 /** Scrollback the emulator retains, in lines. capturePaneContent reads from it. */
 const SCROLLBACK = 5000;
-
-/** getPaneCommand is called ~24x across the daemon and each miss costs a full
- *  process-table query, so results are cached for this long. Short enough that a
- *  harness launch is observed promptly, long enough to survive a polling burst. */
-const PANE_COMMAND_TTL_MS = 1500;
 
 /** Shells that mean "no harness is running here" — mirrors upstream's list. */
 const SHELL_COMMANDS = new Set([
@@ -88,6 +91,12 @@ interface ConPtySession {
   /** remain-on-exit semantics: keep the session addressable after the process
    *  dies so a successor can respawn into it, holding its scrollback. */
   remainOnExit: boolean;
+  /** The shell this pane was spawned with. Reported by getPaneCommand when no
+   *  command has been sent, i.e. "nothing is running here but a shell". */
+  shell: string;
+  /** Last command written into the pane. getPaneCommand reports this instead of
+   *  inspecting the OS — the backend launched it, so it already knows. */
+  launchedCommand?: string;
   pipe?: { path: string; stream: WriteStream };
   /** Live-output subscribers (GAIMER.RIG.CONPTY.4). Fed from the same pty
    *  onData that drives the emulator, so a subscriber sees exactly the bytes
@@ -120,7 +129,8 @@ export class ConPtyBackend implements SessionBackend {
   private readonly freshManaged = new Set<string>();
   private paneCounter = 0;
 
-  private paneCommandCache: { at: number; tree: Map<number, { name: string; ppid: number }> } | null = null;
+  /** Resolved once; see getDefaultShell. */
+  private defaultShell: string | null = null;
 
   private readonly spawn: typeof ptySpawn;
   private readonly execFn: (cmd: string) => Promise<string>;
@@ -129,7 +139,7 @@ export class ConPtyBackend implements SessionBackend {
 
   constructor(deps: ConPtyBackendDeps = {}) {
     this.spawn = deps.spawn ?? ptySpawn;
-    this.execFn = deps.execFn ?? (async (cmd) => (await execAsync(cmd)).stdout);
+    this.execFn = deps.execFn ?? execHidden;
     this.cols = deps.cols ?? CONPTY_COLS;
     this.rows = deps.rows ?? CONPTY_ROWS;
   }
@@ -248,6 +258,7 @@ export class ConPtyBackend implements SessionBackend {
       exited: false,
       exitCode: null,
       remainOnExit: false,
+      shell,
       subscribers: new Set(),
       options: new Map(),
     };
@@ -389,7 +400,15 @@ export class ConPtyBackend implements SessionBackend {
     const written = await this.sendText(target, command);
     if (!written.ok) return written;
     beforeInput?.();
-    return this.sendKeys(target, ["Enter"]);
+    const submitted = await this.sendKeys(target, ["Enter"]);
+    // Record what went in so getPaneCommand needs no OS inspection (WIN.5).
+    // First bare word of the command line is the program, matching what
+    // tmux's #{pane_current_command} reports.
+    if (submitted.ok) {
+      const s2 = this.resolve(target);
+      if (s2) s2.launchedCommand = command.trim().split(/\s+/)[0] || undefined;
+    }
+    return submitted;
   }
 
   // ── Tier 2: pane observability ────────────────────────────────────────────
@@ -428,64 +447,33 @@ export class ConPtyBackend implements SessionBackend {
   }
 
   /**
-   * What is actually running in the pane — the method the daemon leans on to
-   * tell a live harness from a bare shell.
+   * What is running in the pane — how the daemon tells a live harness from a
+   * bare shell.
    *
-   * tmux answers this from `#{pane_current_command}`. ConPTY has no equivalent,
-   * so we walk the Windows process tree down from the pty's pid and return the
-   * deepest descendant that is not a shell; if everything below is a shell, we
-   * return the shell, which is the honest answer ("nothing is running here").
+   * GAIMER.RIG.WIN.5 — this MUST NOT touch the OS.
+   *
+   * The first implementation walked the Windows process tree by spawning
+   * `powershell -NoProfile -Command "Get-CimInstance Win32_Process ..."`, i.e.
+   * a whole PowerShell process doing a full WMI enumeration of every process on
+   * the machine, behind a 1.5s cache. The daemon polls seats continuously, so
+   * on a live rig that ran forever, several times a second. WMI enumeration is
+   * expensive and spawning a shell per probe is worse; it is a standing load on
+   * the user's machine and is suspected of having hung one.
+   *
+   * It was also unnecessary. THIS BACKEND SPAWNS THE PROCESSES ITSELF, so it
+   * already knows what went into each pane — no inspection required. We record
+   * the launched command and report it for as long as the pty is alive.
+   *
+   * Fidelity note, stated honestly: this cannot observe a harness that exited
+   * back to its shell on its own (tmux's `#{pane_current_command}` can, because
+   * the tmux server tracks it for free). In exchange it costs zero syscalls.
+   * `isPaneDead` still reports a dead pane truthfully, which is the case the
+   * lifecycle actually acts on.
    */
   async getPaneCommand(paneId: string): Promise<string | null> {
     const s = this.resolve(paneId);
     if (!s || s.exited) return null;
-    const rootPid = s.pty.pid;
-    if (!rootPid) return null;
-
-    const tree = await this.processTree();
-    const children = new Map<number, number[]>();
-    for (const [pid, info] of tree) {
-      const sibs = children.get(info.ppid);
-      if (sibs) sibs.push(pid);
-      else children.set(info.ppid, [pid]);
-    }
-
-    let best: string | null = tree.get(rootPid)?.name ?? null;
-    const walk = (pid: number, depth: number): void => {
-      if (depth > 12) return;
-      for (const child of children.get(pid) ?? []) {
-        const name = tree.get(child)?.name;
-        if (name && !SHELL_COMMANDS.has(name.toLowerCase())) best = name;
-        walk(child, depth + 1);
-      }
-    };
-    walk(rootPid, 0);
-    return best;
-  }
-
-  /** One process-table read, shared by every getPaneCommand in the burst. */
-  private async processTree(): Promise<Map<number, { name: string; ppid: number }>> {
-    const now = Date.now();
-    if (this.paneCommandCache && now - this.paneCommandCache.at < PANE_COMMAND_TTL_MS) {
-      return this.paneCommandCache.tree;
-    }
-    const tree = new Map<number, { name: string; ppid: number }>();
-    try {
-      const out = await this.execFn(
-        'powershell -NoProfile -Command "Get-CimInstance Win32_Process | ' +
-        'Select-Object ProcessId,ParentProcessId,Name | ConvertTo-Csv -NoTypeInformation"',
-      );
-      for (const line of out.split(/\r?\n/).slice(1)) {
-        const m = line.match(/^"(\d+)","(\d+)","(.*)"$/);
-        if (!m) continue;
-        tree.set(Number(m[1]), { ppid: Number(m[2]), name: m[3]! });
-      }
-    } catch {
-      // A failed probe must not be reported as "no process"; callers get the
-      // stale-or-empty tree and getPaneCommand falls back to null.
-    }
-    this.paneCommandCache = { at: now, tree };
-    return tree;
+    return s.launchedCommand ?? s.shell;
   }
 
   async signalPaneProcess(paneId: string, signal: "TERM" | "KILL"): Promise<SessionResult> {
@@ -580,14 +568,18 @@ export class ConPtyBackend implements SessionBackend {
   }
 
   async getDefaultShell(): Promise<string | null> {
-    // Prefer PowerShell 7 when present, then Windows PowerShell, then COMSPEC.
+    // WIN.5: resolved ONCE per backend. This used to shell out to `where` on
+    // every createSession; the answer cannot change while the daemon runs.
+    if (this.defaultShell) return this.defaultShell;
     for (const candidate of ["pwsh.exe", "powershell.exe"]) {
       try {
         await this.execFn(`where ${candidate}`);
+        this.defaultShell = candidate;
         return candidate;
       } catch { /* not on PATH; try the next */ }
     }
-    return process.env.COMSPEC ?? "cmd.exe";
+    this.defaultShell = process.env.COMSPEC ?? "cmd.exe";
+    return this.defaultShell;
   }
 
   async hasSessionEnv(sessionName: string, varName: string): Promise<boolean | null> {
